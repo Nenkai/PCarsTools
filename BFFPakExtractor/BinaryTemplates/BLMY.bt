@@ -1,0 +1,160 @@
+//------------------------------------------------
+//--- 010 Editor v11.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+LittleEndian();
+
+typedef struct 
+{
+    char ChunkId[4] <fgcolor=cLtBlue>;
+    uint Size <format=hex, fgcolor=cGreen>;
+    uint Offset <format=hex, fgcolor=cRed>;
+    uint pad <hidden=true>;
+} ChunkHeader <bgcolor=cDkYellow>;
+
+typedef struct
+{
+    int ElementCount <fgcolor=cGreen>;
+    int AttributeCount <fgcolor=cGreen>;
+    int CollectionCount <fgcolor=cGreen>;
+    int NumberCount <fgcolor=cGreen>;
+    int StringCount <fgcolor=cGreen>;
+    int BoolCount <fgcolor=cGreen>;
+    int RootNodeIndex;
+} HeaderChunk;
+
+typedef struct (int elementSize)
+{
+    local int i = 0;
+    for (i; i < elementSize; i++)
+    {
+        struct Element
+        {
+            uint ElementHash <format=hex, fgcolor=cAqua>;
+            uint AttributeIndex;
+            uint AttributeCount <fgcolor=cGreen>;
+            uint ChildCount;
+            int FirstChildIndex;
+            uint NextSiblingIndex;
+            uint NextInCollection;
+        } element;
+    }
+} ElementChunk <bgcolor=cBlue>;
+
+typedef struct (int attributeSize)
+{
+    local int i = 0;
+    for (i; i < attributeSize; i++)
+    {
+        struct Attribute
+        {
+            uint AttributeHash <format=hex, fgcolor=cAqua>;
+            uint Type;
+            uint ValueOrIndex <fgcolor=cGreen>;
+            uint VectorCount;
+            int NextInCollection;
+        } attribute;
+    }
+} AttributeChunk <bgcolor=cLtRed>;
+
+typedef struct (int collectionSize)
+{
+    local int i = 0;
+    for (i; i < collectionSize; i++)
+    {
+        struct Collection
+        {
+            uint Hash <fgcolor=cAqua, comment="Hash value is ordered for BSearch, important">;
+            uint ElementIndex;
+            enum <uint> AttributeFlags { None, ColAttribute} Flags;
+            int pad;
+        } collection;
+    }
+} CollectionChunk <bgcolor=cGreen>;
+
+typedef struct (int numbersSize)
+{
+    float numbers[numbersSize];
+} NumberChunk <bgcolor=cGreen>;
+
+typedef struct (int boolsSize)
+{
+    BitfieldDisablePadding();
+    struct 
+    { 
+        byte value : 1; 
+    } bools[boolsSize] <optimize=false>;
+
+} BoolChunk <bgcolor=cDkYellow>;
+
+typedef struct (int stringsSize)
+{
+    const int alignment = 0x04;
+    struct 
+    { 
+        string str;
+        // char** align
+        FSeek((FTell() + (alignment - 1)) & ~(alignment - 1));
+    } strs[stringsSize] <optimize=false>;
+
+} StringChunk <bgcolor=cGray>;
+
+local HeaderChunk tmpHChunk;
+
+struct BLMY
+{
+    struct Header 
+    {   
+        char Magic[4];
+        int ChunkCount <fgcolor=cGreen>;
+        int size <format=hex>;
+        int pad;
+    } header <bgcolor=cPurple>;
+    
+    ChunkHeader cHeader[header.ChunkCount];
+
+    local int i = 0;
+    
+    for (i; i < header.ChunkCount; i++)
+    {
+        FSeek(cHeader[i].Offset);
+        if (cHeader[i].ChunkId == "HEAD")
+        {
+            HeaderChunk hChunk;
+        }
+        else if (cHeader[i].ChunkId == "ELMT")
+        {
+            ElementChunk elmtChunk(hChunk.ElementCount);
+        }
+        else if (cHeader[i].ChunkId == "ATTR")
+        {
+            AttributeChunk attrChunk(hChunk.AttributeCount);
+        }
+        else if (cHeader[i].ChunkId == "COLL")
+        {
+            CollectionChunk colChunk(hChunk.CollectionCount);
+        }
+        else if (cHeader[i].ChunkId == "NUMB")
+        {
+            NumberChunk numChunk(hChunk.NumberCount);
+        }
+        else if (cHeader[i].ChunkId == "BOOL")
+        {
+            BoolChunk boolChunk(hChunk.BoolCount);
+        }
+        else if (cHeader[i].ChunkId == "STRS")
+        {
+            StringChunk strChunk(hChunk.StringCount);
+        }
+    }
+
+} BlimeyMarkupLanguage;
