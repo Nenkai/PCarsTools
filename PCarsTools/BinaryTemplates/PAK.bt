@@ -1,0 +1,140 @@
+//------------------------------------------------
+//--- 010 Editor v12.0 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+LittleEndian();
+BitfieldDisablePadding();
+
+typedef struct
+{
+    int64 unk : 12;
+    //if (unk > 0)
+    //    Printf("%d\n", unk);
+    int64 Milli : 10;
+    int Second : 6;
+    int Minute : 6;
+    int Hour : 5;
+    int Day : 5;
+    int Month : 4;
+    short Year : 16;
+} BTimeStamp <comment=OutputDateTime>;
+
+string OutputDateTime( BTimeStamp &s )
+{
+    string Year_s;
+    string Month_s;
+    string Day_s;
+    string Hour_s;
+    string Minute_s;
+    string Second_s;
+    string Formatted_DateTime;
+    SPrintf ( Year_s, "%d", s.Year );
+    SPrintf ( Month_s, "%02d", s.Month );
+    SPrintf ( Day_s, "%02d", s.Day );
+    SPrintf ( Hour_s, "%02d", s.Hour );
+    SPrintf ( Minute_s, "%02d", s.Minute );
+    SPrintf ( Second_s, "%02d", s.Second );
+    return Day_s+"/"+Month_s+"/"+Year_s+" "+Hour_s+":"+Minute_s;
+}
+
+typedef struct 
+{
+    int Auto : 11;
+    int Interim : 11;
+    byte Minor : 6;
+    byte Major : 4;
+} BVersion;
+
+typedef struct 
+{
+    int FileCount;
+    int PakSize <format=hex, fgcolor=cGreen>;
+    int PakOffset <format=hex, fgcolor=cRed>;
+    int testtt;
+    char Name[0x100];
+} PakInfo;
+
+// 0x130 
+
+local string pakTag = "PAK ";
+
+typedef struct
+{
+    int64 Uid <format=hex>;
+    int64 Offset;
+    int SrcSize;
+    int DestSize;
+    BTimeStamp stamp;
+    short Flags <format=hex>;
+    uint crc32;
+    char Extension[4];
+} PakFileTocEntry <optimize=false>;
+
+typedef struct
+{
+    local int cPos = FTell();
+    struct PakFileHeader
+    {
+        char mID[4];
+        BVersion Version;
+
+        int FileCount;
+        int64 DataOffset <format=hex, fgcolor=cRed>;
+        int SectorSize <format=hex, fgcolor=cGreen>;
+        char FileName[0x100];
+        int TocSize <format=hex, fgcolor=cGreen>;
+        int CrcSize <format=hex, fgcolor=cGreen>;
+        int ExtInfoSize <format=hex, fgcolor=cGreen>;
+        int SectionInfoPos <format=hex, fgcolor=cRed>;
+        int SectionInfoSize <format=hex, fgcolor=cGreen>;
+        byte BigEndian;
+        enum <byte> ePakFileEncryption { None, TwoFish, RC4 } EncryptionFlags;
+        short pad;
+
+        if (EncryptionFlags != None)
+            Printf("%s encrypted Yes\n", FileName);
+        else
+            Printf("%s encrypted: No\n", FileName);
+    } header;
+ 
+    struct PakFileTocEntries
+    { 
+        PakFileTocEntry infos[header.FileCount];
+    } entries;
+
+    if (header.ExtInfoSize != 0)
+    {
+        struct ExtInfoTable
+        {
+            byte extHeader[0x308]; // Always 0x308, must be
+            local int i = 0;
+
+            if (header.EncryptionFlags == None)
+            {
+                struct ExtInfo
+                {
+                    int64 NameOffset <format=hex, fgcolor=cRed>;
+                    BTimeStamp stamp;
+                    
+                    if (header.EncryptionFlags == 0)
+                    {   
+                       local int tmp = FTell();
+                       FSeek(cPos + NameOffset);
+                       byte nLen;
+                       char Name[nLen];
+                       FSeek(tmp);
+                    }
+                } ExtInf[header.FileCount] <optimize=false>;
+            }
+        } ExtInfoTbl;
+    }
+} Pak <optimize=false>;

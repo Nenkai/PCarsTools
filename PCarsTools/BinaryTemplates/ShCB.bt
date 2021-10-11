@@ -1,0 +1,299 @@
+//------------------------------------------------
+//--- 010 Editor v11.0.1 Binary Template
+//
+//      File: 
+//   Authors: 
+//   Version: 
+//   Purpose: 
+//  Category: 
+// File Mask: 
+//  ID Bytes: 
+//   History: 
+//------------------------------------------------
+
+LittleEndian();
+
+const int CollectionEntries_Hash = 0x237D43F6;
+const int Collections_Hash = 0xD2D3E5B5;
+const int DebugDescriptor_Hash = 0xC8D7F40F;
+const int DebugEvents_Hash = 0xE90A8A59;
+const int DebugFunctionNames_Hash = 0xAD6D4403;
+const int DebugLocalClassNames_Hash = 0x860C435C;
+const int DebugRegisters_Hash = 0x2F07D566;
+const int DebugSource_Hash = 0x885B9F70;
+const int DebugSourceNodes_Hash = 0xB9A5FE2E;
+const int DebugStates_Hash = 0x14DEA6E4;
+const int DebugStrings_Hash = 0x8F1D029A;
+const int Descriptor_Hash = 0x4C03C2D8;
+const int EventCode_Hash = 0x5EE9A405;
+const int Events_Hash = 0xCF82FBE1;
+const int Headers_Hash = 0x801614AD;
+const int Indices_Hash = 0x4213D26;
+const int InitialisationCode_Hash = 0x55F08DBF;
+const int Registers_Hash = 0x7CCAD12A;
+const int States_Hash = 0x285A3BA4;
+const int Strings_Hash = 0x5F5E4159;
+const int Vectors_Hash = 0xFD633F88;
+
+typedef enum <byte>
+{
+    BoolCollection = 9,
+    IntCollection = 10,
+    FloatCollection = 11,
+    StringCollection = 12,
+    ScreenCollection = 13,
+    VectorCollection = 14,
+    PointerCollection = 15,
+    ObjectCollection = 16,
+    CollectionCollection = 17,
+} eDataType;
+
+typedef struct
+{
+    int Flags;
+    int RegisterCount;
+    int CollectionCount;
+    int CollectionEntriesCount;
+    int VectorsCount;
+    int StatesCount;
+    int EventsCount;
+    int LocalClassesCount;
+    int RootStatesCount;
+    int GlobalEventsCount;
+    int HeadersCount;
+    int InputRegisterStartIndex;
+    int ReturnRegisterStartIndex;
+    int DataRegisterStartIndex;
+    int LocalRegisterStartIndex;
+    int pad;
+    int64 Dispatchers;
+    int64 RootStates;
+    int64 GlobalEvents;
+} Descriptors;
+
+typedef struct
+{
+    enum <byte> eStorage { eStorage_Invalid, eStorage_Normal, eStorage_ReturnRegister = 2, eStorage_InputRegister = 3 } StorageType;
+    byte DataType;
+    short VectorIndex;
+    int unk;
+    int data;
+    int data2;
+} Registers;
+
+typedef struct
+{
+    int64 File;
+    short Capacity;
+    short UsedEntryCount;
+    short FirstFreeEntryIndex;
+    short FirstUsedEntryIndex;
+    short LastUsedEntryIndex;
+    short RegisterIndex;
+    short LastAccessed_Index;
+    short LastAccessed_EntryIndex;
+} Collection;
+
+typedef struct
+{
+    short EntryIndexPrev;
+    short EntryIndexNext;
+    short RegisterIndex;
+    short CollectionIndex;
+} CollectionEntry;
+
+typedef struct
+{
+    byte Size <format=hex, fgcolor=cGreen>;
+    byte NumArguments;
+    short LocalClassIndex;
+    short ReturnRegisterIndex;
+    short FunctionIndex;
+    if (NumArguments > 0)
+        int Args[NumArguments] <comment="To Registers?">;
+} ByteCode <bgcolor=cWhite>;
+
+typedef struct 
+{
+    int Flags;
+    int HashCode <format=hex>;
+    int64 ParentState;
+    int NumChildStates;
+    int NumEvents;
+    int64 ChildStates;
+    int64 Events;
+} State;
+
+typedef struct 
+{
+    int Flags;
+    int HashCode <format=hex>;
+    int ParameterType;
+    int NumArguments;
+    int64 ArgumentRegisterIndices;
+    int64 ByteCodePtr <format=hex, comment="Offset from EventCode">;
+} Event <bgcolor=cBlue>;
+
+typedef struct 
+{
+    int indice;
+} Indice <bgcolor=cLtBlue>;
+
+typedef struct 
+{
+    float X;
+    float Y;
+    float Z;
+} BVec3f <bgcolor=cDkBlue>;
+
+typedef struct
+{
+    string str;
+} Strings;
+
+typedef struct
+{
+    int HashCode <format=hex>;
+    int Checksum <format=hex>;
+} HeaderCheck <bgcolor=cBlack>;
+
+typedef struct
+{
+    int SourceNodesCount;
+    int EventsCount;
+    int StatesCount;
+    int RegistersCount;
+    int LocalClassNamesCount;
+    int FunctionNamesCount;
+    int ObjectFilename;
+} DebugDescriptor <bgcolor=cYellow>;
+
+typedef struct
+{
+    string str;
+} DebugStrings;
+
+typedef struct
+{
+    int EventCodeOffset <format=hex, fgcolor=cRed, comment="To EventCode">;
+    short Line;
+    short Column;
+} DebugSourceNode <bgcolor=cDkYellow>;
+
+typedef struct
+{
+    int Name_StringOffset <format=hex, fgcolor=cRed, comment="To DebugStrings">;
+    int ArgName_Offset[3] <format=hex, fgcolor=cRed, comment="To DebugStrings">;
+    int SourceLine;
+    int StartByteCode_Offset <format=hex, fgcolor=cRed, comment="To EventCode">;
+    int EndByteCode_Offset <format=hex, fgcolor=cRed, comment="To EventCode">;
+} DebugEvent <bgcolor=cDkRed>;
+
+typedef struct
+{
+    int Name_StringOffset <format=hex, fgcolor=cRed, comment="ToDebugStrings">;
+    int SourceLine;
+} DebugState <bgcolor=cRed>;
+
+typedef struct
+{
+    int Index;
+    int Name_StringOffset <format=hex, fgcolor=cRed, comment="To DebugStrings">;
+    int SourceLine;
+} DebugRegister <bgcolor=cDkPurple>;
+
+typedef struct
+{
+    int Name_StringOffset <format=hex, fgcolor=cRed, comment="ToDebugStrings">;
+} DebugLocalClassName <bgcolor=cPurple>;
+
+typedef struct
+{
+    int ClassFunctionIndex;
+    int Name_StringOffset <comment="ToDebugStrings">;
+} DebugFunctionName <bgcolor=cLtRed>;
+
+typedef struct
+{
+    int SourceLengthOriginal <format=hex>;
+    int SourceLengthCompressed <format=hex, comment="Inflate method">;
+    int NumLines;
+    int LineArrayOffset;
+    if (NumLines > 0)
+        int Lines[NumLines];
+    int CompressedSourceOffset <comment="Inflate Method">;
+    byte sourceCompressed[SourceLengthCompressed];
+} DebugSource <bgcolor=cGreen>;
+
+// MWL::Base::_BChunkStreamReaderBase::_CommonOpen
+struct ScriptCallback
+{
+    struct 
+    {
+        char Magic[4];
+        int dataId <format=hex>; // "ScribeObject:v0.1.2.0" hashed
+        int TotalSize <format=hex>;
+        short ChunkCount;
+        short xd;
+    } StreamHeader <bgcolor=cPurple>;
+    
+    struct
+    {
+        int ChunkHash <format=hex>;
+        int Size <fgcolor=cGreen, format=hex>;
+        int Offset <format=hex, fgcolor=cRed>;
+
+    } ChunkHeader[StreamHeader.ChunkCount];
+
+    local int i = 0;
+    for (i; i < StreamHeader.ChunkCount; i++)
+    {
+        FSeek(ChunkHeader[i].Offset);
+        switch (ChunkHeader[i].ChunkHash)
+        {
+            case Descriptor_Hash:
+                Descriptors desc; break;
+            case Registers_Hash:
+                Registers registers[1]; break;
+            case Collections_Hash:
+                Collection collection[desc.CollectionCount]; break;
+            case CollectionEntries_Hash:
+                CollectionEntry colEntry[desc.CollectionEntriesCount]; break;
+            case InitialisationCode_Hash:
+                ByteCode initializationCode; break;
+            case States_Hash:
+                State state[desc.StatesCount]; break;
+            case Events_Hash:
+                Event event[desc.EventsCount]; break;
+            case Indices_Hash:
+                Indice idx; break;
+            case EventCode_Hash:
+                ByteCode eventCode; break;
+            case Vectors_Hash:
+                BVec3f vector[desc.VectorsCount]; break;
+            case Strings_Hash:
+                Strings str; break;
+            case DebugDescriptor_Hash:
+                DebugDescriptor dbgDescriptor; break;
+            case DebugRegisters_Hash:
+                DebugRegister dbgRegister[dbgDescriptor.RegistersCount]; break;
+            case DebugSourceNodes_Hash:
+                DebugSourceNode dbgSourceNodes[dbgDescriptor.SourceNodesCount]; break;
+            case DebugEvents_Hash:
+                DebugEvent debugEvent[dbgDescriptor.EventsCount]; break;
+            case DebugLocalClassNames_Hash:
+                DebugLocalClassName dbgClassNames[dbgDescriptor.LocalClassNamesCount]; break;
+            case DebugFunctionNames_Hash:
+                DebugFunctionName debugFunctionName[dbgDescriptor.FunctionNamesCount]; break;
+            case DebugStrings_Hash:
+                DebugStrings debugStrings; break;
+            case DebugSource_Hash:
+                DebugSource dbgSource; break;
+            case DebugStates_Hash:
+                DebugState dbgStates; break;
+            case Headers_Hash:
+                HeaderCheck header[desc.HeadersCount]; break;
+            
+        }
+    }
+} ShCB;
