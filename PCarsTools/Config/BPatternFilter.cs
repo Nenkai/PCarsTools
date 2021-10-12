@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace PCarsTools.Config
 {
-    class BPatternFilter
+    public class BPatternFilter
     {
         /// <summary>
         /// 11 bits - 8 byte xor "key", 1 bit xor set, 1 bit has wildcard (?), 1 bit default action

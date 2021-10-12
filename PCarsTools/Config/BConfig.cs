@@ -21,7 +21,7 @@ namespace PCarsTools.Config
             0xEF, 0xEE, 0xC0, 0xCD, 0x92, 0xA6, 0x97, 0xF2, 0xE8, 0xDC, 0x80, 0xDC, 0xEE, 0xA1, 0xA0, 0xDA,
         };
 
-        private List<BPatternFilter> _patternFilter = new List<BPatternFilter>();
+        public List<BPatternFilter> PatternFilters { get; set; } = new();
 
         public bool LoadConfig(string fileName)
         {
@@ -52,23 +52,20 @@ namespace PCarsTools.Config
                 pattern.SetDefaultAction(false);
                 pattern.SetXOR(0xB3);
                 pattern.AppendRule(data.ToArray(), true, false);
-                _patternFilter.Add(pattern);
+                PatternFilters.Add(pattern);
 
                 patternNode = patternNode.GetNextSibling();
             }
 
-            foreach (var i in _patternFilter)
+            foreach (var i in PatternFilters)
             {
                 foreach (var j in i.PatternRules)
                 {
-                    char[] xd = new char[j.Pattern.Length];
-                    for (int k = 0; k < xd.Length;k++)
-                    {
-                        xd[k] = (char)((byte)j.Pattern[k] ^ 0xB3);
+                    char[] decrypted = new char[j.Pattern.Length];
+                    for (int k = 0; k < decrypted.Length;k++)
+                        decrypted[k] = (char)((byte)j.Pattern[k] ^ 0xB3);
 
-                    }
-
-                    Console.WriteLine(new string(xd));
+                    j.PatternDecrypted = new string(decrypted);
                 }
             }
             return true;
@@ -77,7 +74,7 @@ namespace PCarsTools.Config
         public int GetPatternIdx(string fileName)
         {
             string str = fileName.ToLower().Replace('/', '\\');
-            foreach (var patFilters in _patternFilter)
+            foreach (var patFilters in PatternFilters)
             {
                 if (patFilters.IsAccepted(str))
                     return patFilters.Index;

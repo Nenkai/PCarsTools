@@ -9,6 +9,8 @@ namespace PCarsTools.Config
     public class BPatternFilterRule
     {
         public byte[] Pattern { get; set; }
+        public string PatternDecrypted { get; set; }
+
         public uint Val { get; set; }
 
         public BPatternFilterRule()

@@ -32,18 +32,22 @@ namespace PCarsTools
 
         private FileStream _fs;
 
+        private string _path;
+
         public static BPakFile FromFile(string inputFile)
         {
             var fs = new FileStream(inputFile, FileMode.Open);
-            var pak = FromStream(fs);
+            var pak = FromStream(fs, inputFile);
             pak._fs = fs;
+
             return pak;
         }
 
-        public static BPakFile FromStream(Stream stream, int index = 0)
+        public static BPakFile FromStream(Stream stream, string filename = null)
         {
             var pak = new BPakFile();
             int pakOffset = (int)stream.Position;
+            pak._path = filename.ToLower().Replace('/', '\\');
 
             using var bs = new BinaryStream(stream, leaveOpen: true);
             int mID = bs.ReadInt32();
@@ -51,7 +55,24 @@ namespace PCarsTools
             int fileCount = bs.ReadInt32();
             bs.Position += 12;
             pak.Name = bs.ReadString(0x100).TrimEnd('\0');
+
             pak.KeyIndex = BConfig.Instance.GetPatternIdx(pak.Name);
+            if (pak.KeyIndex == 0 && !string.IsNullOrEmpty(pak._path)) // Default key found, try to see if its in the path
+            {
+                foreach (var filter in BConfig.Instance.PatternFilters)
+                {
+                    foreach (var rule in filter.PatternRules)
+                    {
+                        if (pak._path.Contains(rule.PatternDecrypted))
+                        {
+                            pak.KeyIndex = filter.Index;
+                            goto found;
+                        }
+                    }
+                }
+            found:
+                ;
+            }
 
             uint pakFileTocEntrySize = bs.ReadUInt32();
             uint crc = bs.ReadUInt32();
@@ -63,11 +84,27 @@ namespace PCarsTools
 
             var pakTocBuffer = bs.ReadBytes((int)pakFileTocEntrySize);
 
-            int j = 0;
             if (pak.EncryptionType != eEncryptionType.None)
-                BPakFileEncryption.DecryptData(pak.EncryptionType, pakTocBuffer, pakTocBuffer.Length, pak.KeyIndex);
+            {
+                if (pak.KeyIndex == 0) // Still not found? Attempt bruteforce
+                {
+                    int j = 0;
+                    for (int i = 0; i < 32; i++)
+                    {
+                        var tmpData = pakTocBuffer.ToArray();
+                        BPakFileEncryption.DecryptData(pak.EncryptionType, tmpData, tmpData.Length, i);
+                        if (tmpData[14] == 0 && tmpData[15] == 0)
+                        {
+                            pak.KeyIndex = i;
+                            break;
+                        }
+                    }
+                }
 
-            if (pakTocBuffer[15] != 0 && pakTocBuffer[16] != 0) // Check if first entry offset is absurdly too big that its possibly not decrypted correctly
+                BPakFileEncryption.DecryptData(pak.EncryptionType, pakTocBuffer, pakTocBuffer.Length, pak.KeyIndex);
+            }
+
+            if (pakTocBuffer[14] != 0 && pakTocBuffer[15] != 0) // Check if first entry offset is absurdly too big that its possibly not decrypted correctly
                 Console.WriteLine($"Warning - possible crash: {pak.Name} toc could most likely not be decrypted correctly using key No.{pak.KeyIndex}");
 
             pak.Entries = new List<BPakFileTocEntry>(fileCount);
@@ -241,6 +278,12 @@ namespace PCarsTools
             {
                 Console.WriteLine($"Warning: Unrecognized compression type {entry.Compression} for {extEntry.Path}");
                 return false;
+            }
+            else
+            {
+                // No compression
+                File.WriteAllBytes(output, bytes);
+                return true;
             }
 
             return false;

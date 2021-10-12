@@ -55,7 +55,7 @@ namespace PCarsTools
             {
                 var pakInfo = PakInfos[i];
                 bs.Position = pakInfo.PakOffset;
-                var pak = BPakFile.FromStream(bs, i);
+                var pak = BPakFile.FromStream(bs, null);
                 Paks.Add(pak);
             }
 
