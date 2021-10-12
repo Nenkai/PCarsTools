@@ -57,6 +57,20 @@ namespace PCarsTools.Config
                 patternNode = patternNode.GetNextSibling();
             }
 
+            foreach (var i in _patternFilter)
+            {
+                foreach (var j in i.PatternRules)
+                {
+                    char[] xd = new char[j.Pattern.Length];
+                    for (int k = 0; k < xd.Length;k++)
+                    {
+                        xd[k] = (char)((byte)j.Pattern[k] ^ 0xB3);
+
+                    }
+
+                    Console.WriteLine(new string(xd));
+                }
+            }
             return true;
         }
 

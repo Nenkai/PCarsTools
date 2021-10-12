@@ -30,6 +30,16 @@ namespace PCarsTools
 
         public int KeyIndex { get; set; }
 
+        private FileStream _fs;
+
+        public static BPakFile FromFile(string inputFile)
+        {
+            var fs = new FileStream(inputFile, FileMode.Open);
+            var pak = FromStream(fs);
+            pak._fs = fs;
+            return pak;
+        }
+
         public static BPakFile FromStream(Stream stream, int index = 0)
         {
             var pak = new BPakFile();
@@ -52,8 +62,13 @@ namespace PCarsTools
             bs.Position += 2;
 
             var pakTocBuffer = bs.ReadBytes((int)pakFileTocEntrySize);
+
+            int j = 0;
             if (pak.EncryptionType != eEncryptionType.None)
                 BPakFileEncryption.DecryptData(pak.EncryptionType, pakTocBuffer, pakTocBuffer.Length, pak.KeyIndex);
+
+            if (pakTocBuffer[15] != 0 && pakTocBuffer[16] != 0) // Check if first entry offset is absurdly too big that its possibly not decrypted correctly
+                Console.WriteLine($"Warning - possible crash: {pak.Name} toc could most likely not be decrypted correctly using key No.{pak.KeyIndex}");
 
             pak.Entries = new List<BPakFileTocEntry>(fileCount);
             SpanReader sr = new SpanReader(pakTocBuffer);
@@ -127,12 +142,43 @@ namespace PCarsTools
             return pak;
         }
 
+        public void UnpackAll(string outputDir)
+        {
+            int totalCount = 0;
+            int failed = 0;
+
+            for (int i = 0; i < Entries.Count; i++)
+            {
+                var entry = Entries[i];
+                var extEntry = ExtEntries[i];
+
+                string outPath = Path.Combine(outputDir, extEntry.Path);
+                Directory.CreateDirectory(Path.GetDirectoryName(outPath));
+
+                if (UnpackFromStream(entry, extEntry, outPath))
+                {
+                    Console.WriteLine($"Unpacked: [{Name}]\\{extEntry.Path}");
+                    totalCount++;
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to unpack: {extEntry.Path}");
+                    failed++;
+                }
+            }
+
+            Console.WriteLine($"Done. Extracted {totalCount} files ({failed} not extracted)");
+        }
+
         public bool UnpackFromLocalFile(string outputDir, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry)
         {
+            if (_fs is not null)
+                throw new InvalidOperationException("Can't extract from local file when the pak is an actual file with data");
+
             string localPath = Path.Combine(outputDir, extEntry.Path);
             if (File.Exists(localPath))
             {
-                return Unpack(entry, extEntry, localPath, localPath + ".dec");
+                return UnpackFromFile(entry, extEntry, localPath, localPath + ".dec");
             }
             else
             {
@@ -142,11 +188,31 @@ namespace PCarsTools
             return false;
         }
 
-        private bool Unpack(BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string inputFile, string output)
+        public bool UnpackFromStream(BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string output)
+        {
+            if (_fs is null)
+                throw new InvalidOperationException("Can't extract from stream from a toc file based pak");
+
+            _fs.Position = (long)entry.Offset;
+
+            var bytes = ArrayPool<byte>.Shared.Rent((int)entry.PakSize);
+            _fs.Read(bytes);
+
+            bool result = Unpack(bytes, entry, extEntry, output);
+            ArrayPool<byte>.Shared.Return(bytes);
+            return result;
+        }
+
+        private bool UnpackFromFile(BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string inputFile, string output)
         {
             var bytes = File.ReadAllBytes(inputFile);
+            return Unpack(bytes, entry, extEntry, output);
+        }
+
+        private bool Unpack(byte[] bytes, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string output)
+        {
             if (this.EncryptionType != eEncryptionType.None)
-               BPakFileEncryption.DecryptData(this.EncryptionType, bytes, bytes.Length, this.KeyIndex);
+                BPakFileEncryption.DecryptData(this.EncryptionType, bytes, bytes.Length, this.KeyIndex);
 
             if (entry.Compression == PakFileCompressionType.Mermaid || entry.Compression == PakFileCompressionType.Kraken)
             {
@@ -154,6 +220,8 @@ namespace PCarsTools
                 bool res = Oodle.Decompress(bytes, dec, entry.FileSize);// Implement this
                 if (res)
                     File.WriteAllBytes(output, dec);
+
+                ArrayPool<byte>.Shared.Return(dec);
                 return res;
             }
             else if (entry.Compression == PakFileCompressionType.ZLib)
@@ -162,8 +230,11 @@ namespace PCarsTools
                 using var ms = new MemoryStream(bytes);
                 using var uncompStream = new DeflateStream(ms, CompressionMode.Decompress);
                 int len = uncompStream.Read(dec);
+
                 if (len == entry.FileSize)
                     File.WriteAllBytes(output, dec);
+
+                ArrayPool<byte>.Shared.Return(dec);
                 return len == entry.FileSize;
             }
             else if (entry.Compression != PakFileCompressionType.None)
