@@ -9,4 +9,5 @@ Should allow fully unpacking with file names:
 Allows decrypting:
 * build.dat
 * Scripts
-* <TODO> Model encryption - was figured but in a seperate tool.
+
+Model encryption was figured but in a seperate tool not currently included.
