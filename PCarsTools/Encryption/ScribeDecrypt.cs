@@ -50,8 +50,8 @@ namespace PCarsTools.Encryption
 
             uint a = 0, b = 0, i = 0, j = 0;
 
-            int count = KeySize > Factor ? 
-                3 * KeySize : 
+            int count = KeySize > Factor ?
+                3 * KeySize :
                 3 * Factor;
 
             for (int x = 1; x <= count; x += 1)
@@ -87,9 +87,9 @@ namespace PCarsTools.Encryption
             for (int x = 0; x < data.Length; x += 4)
             {
                 uint k0 = data[x];
-                uint k1 = data[x+1];
-                uint k2 = data[x+2];
-                uint k3 = data[x+3];
+                uint k1 = data[x + 1];
+                uint k2 = data[x + 2];
+                uint k3 = data[x + 3];
 
                 k2 -= schedule[(Rounds * 2) + 3];
                 k0 -= schedule[(Rounds * 2) + 2];
@@ -124,9 +124,9 @@ namespace PCarsTools.Encryption
                 k1 -= schedule[0];
 
                 data[x] = k0;
-                data[x+1] = k1;
-                data[x+2] = k2;
-                data[x+3] = k3;
+                data[x + 1] = k1;
+                data[x + 2] = k2;
+                data[x + 3] = k3;
             }
         }
 
@@ -191,15 +191,15 @@ namespace PCarsTools.Encryption
 
         private static void Mix32(ref uint a, ref uint b, ref uint c)
         {
-            a -= b; a -= c; a ^= (c >> 13);	
-	        b -= c; b -= a; b ^= (a << 8);	
-	        c -= a; c -= b; c ^= (b >> 13);	
-	        a -= b; a -= c; a ^= (c >> 12);	
-	        b -= c; b -= a; b ^= (a << 16);	
-	        c -= a; c -= b; c ^= (b >> 5);	
-	        a -= b; a -= c; a ^= (c >> 3);	
-	        b -= c; b -= a; b ^= (a << 10);	
-	        c -= a; c -= b; c ^= (b >> 15);
+            a -= b; a -= c; a ^= (c >> 13);
+            b -= c; b -= a; b ^= (a << 8);
+            c -= a; c -= b; c ^= (b >> 13);
+            a -= b; a -= c; a ^= (c >> 12);
+            b -= c; b -= a; b ^= (a << 16);
+            c -= a; c -= b; c ^= (b >> 5);
+            a -= b; a -= c; a ^= (c >> 3);
+            b -= c; b -= a; b ^= (a << 10);
+            c -= a; c -= b; c ^= (b >> 15);
         }
     }
 }

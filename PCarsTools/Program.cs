@@ -37,7 +37,7 @@ namespace PCarsTools
                 return;
             }
 
-            if (!File.Exists(options.ConfigPath)) 
+            if (!File.Exists(options.ConfigPath))
             {
                 Console.WriteLine($"Config file {options.InputPath} does not exist.");
                 return;
@@ -57,7 +57,7 @@ namespace PCarsTools
             }
 
             Console.WriteLine("Paks in TOC:");
-            for(int i = 0; i < man.Paks.Count; i++)
+            for (int i = 0; i < man.Paks.Count; i++)
                 Console.WriteLine($" - {man.Paks[i].Name} ({man.Paks[i].Entries.Count} entries, Encryption: {man.Paks[i].EncryptionType})");
             Console.WriteLine();
 

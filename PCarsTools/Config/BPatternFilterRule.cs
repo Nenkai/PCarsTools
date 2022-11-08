@@ -23,8 +23,8 @@ namespace PCarsTools.Config
             if (input is null)
                 return false;
 
-            if ( (((Val >> 1) & 1) == 0) && (((Val >> 2) & 1) == 0))
-                 return false; // TODO implement Stristr
+            if ((((Val >> 1) & 1) == 0) && (((Val >> 2) & 1) == 0))
+                return false; // TODO implement Stristr
 
             byte xor = (byte)(Val >> 3);
             for (int i = 0; i < input.Length; i++)
@@ -33,7 +33,7 @@ namespace PCarsTools.Config
                 {
                     bool isUnk = Pattern[0] == (byte)'?';
                     char currentUp = char.ToUpper((char)input[i]);
-                     
+
                     bool match = currentUp == char.ToUpper((char)(xor ^ Pattern[0])); // decrypt pattern
                     if (isUnk || match)
                         break;
@@ -50,7 +50,7 @@ namespace PCarsTools.Config
                 {
                     bool isUnk = Pattern[j] == (byte)'?';
                     char currentUp = char.ToUpper((char)input[i]);
-                    
+
 
                     bool match = currentUp == char.ToUpper((char)(xor ^ Pattern[j])); // decrypt pattern
                     if (!isUnk && !match)

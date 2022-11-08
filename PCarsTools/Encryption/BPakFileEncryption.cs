@@ -12,23 +12,23 @@ using System.IO;
 
 namespace PCarsTools.Encryption
 {
-    public class BPakFileEncryption
-    {
+	public class BPakFileEncryption
+	{
 		public static void DecryptData(eEncryptionType encryptionType, byte[] data, int len, int keyIndex)
-        {
+		{
 			if (encryptionType == eEncryptionType.RC4)
 				DecryptRC4(data, keyIndex);
 			else if (encryptionType == eEncryptionType.TwoFish)
 				DecryptTwoFish(data, keyIndex);
 			else if (encryptionType == eEncryptionType.None)
-            {
+			{
 				throw new Exception("Tried to decrypt using eEncryptionType.None");
-            }
+			}
 			else
-            {
+			{
 				throw new Exception("Unknown encryption");
-            }
-        }
+			}
+		}
 
 		public static CryptoStream CreateDecryptionStream(eEncryptionType encryptionType, Stream input, int keyIndex)
 		{
@@ -54,7 +54,7 @@ namespace PCarsTools.Encryption
 		}
 
 		public static void DecryptTwoFish(byte[] data, Span<byte> key)
-        {
+		{
 			var tmpKey = key.ToArray();
 
 			DecryptKey(tmpKey);
@@ -64,60 +64,60 @@ namespace PCarsTools.Encryption
 
 			int bSize = eng.GetBlockSize();
 			for (int j = 0; j < data.Length / bSize; j++)
-            {
+			{
 				int offset = j * bSize;
 				eng.ProcessBlock(data, offset, data, offset);
 			}
 		}
 
 		private static void DecryptRC4(Span<byte> data, int keyIndex)
-        {
-            var key = GetEncKey(keyIndex); // Get a copy
+		{
+			var key = GetEncKey(keyIndex); // Get a copy
 
-            DecryptKey(key);
+			DecryptKey(key);
 
-            RC4.Crypt(key, data, data, data.Length);
-        }
+			RC4.Crypt(key, data, data, data.Length);
+		}
 
 		private static CryptoStream CreateRC4Stream(Stream input, int keyIndex)
-        {
+		{
 			var key = GetEncKey(keyIndex);
 
 			DecryptKey(key);
 
 			return new CryptoStream(input, new RC4CryptoTransform(key), CryptoStreamMode.Read);
-        }
+		}
 
-        private static void DecryptKey(Span<byte> key)
-        {
-            Span<byte> xor = new byte[] { 0xAC, 0xC7, 0x91 };
-            int tIndex = 0;
+		private static void DecryptKey(Span<byte> key)
+		{
+			Span<byte> xor = new byte[] { 0xAC, 0xC7, 0x91 };
+			int tIndex = 0;
 
-            int i;
-            // 2 by 2
-            for (i = 0; i + 1 < key.Length; i += 2)
-            {
-                byte tmp1 = (byte)(xor[tIndex++] ^ key[i]);
-                tIndex = Utils.ClampWrap(tIndex, 0, 2);
+			int i;
+			// 2 by 2
+			for (i = 0; i + 1 < key.Length; i += 2)
+			{
+				byte tmp1 = (byte)(xor[tIndex++] ^ key[i]);
+				tIndex = Utils.ClampWrap(tIndex, 0, 2);
 
-                byte tmp2 = (byte)(xor[tIndex++] ^ key[i + 1]);
-                tIndex = Utils.ClampWrap(tIndex, 0, 2);
+				byte tmp2 = (byte)(xor[tIndex++] ^ key[i + 1]);
+				tIndex = Utils.ClampWrap(tIndex, 0, 2);
 
-                // Reversed
-                key[i] = tmp2;
-                key[i + 1] = tmp1;
-            }
+				// Reversed
+				key[i] = tmp2;
+				key[i + 1] = tmp1;
+			}
 
-            // Remains
-            for (; i < key.Length; i++)
-            {
-                Math.Clamp(tIndex, 0, 2);
-                tIndex++;
-                key[i] ^= xor[tIndex];
-            }
-        }
+			// Remains
+			for (; i < key.Length; i++)
+			{
+				Math.Clamp(tIndex, 0, 2);
+				tIndex++;
+				key[i] ^= xor[tIndex];
+			}
+		}
 
-        private static Span<byte> GetEncKey(int index)
+		private static Span<byte> GetEncKey(int index)
 		{
 			var key = _keys[index];
 			for (int i = 0; i < key.Length; i++)
@@ -167,10 +167,10 @@ namespace PCarsTools.Encryption
 	}
 
 	public enum eEncryptionType
-    {
+	{
 		None,
 		TwoFish = 1,
 		RC4 = 2,
-		
-    }
+
+	}
 }

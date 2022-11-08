@@ -62,7 +62,7 @@ namespace PCarsTools.Config
                 foreach (var j in i.PatternRules)
                 {
                     char[] decrypted = new char[j.Pattern.Length];
-                    for (int k = 0; k < decrypted.Length;k++)
+                    for (int k = 0; k < decrypted.Length; k++)
                         decrypted[k] = (char)((byte)j.Pattern[k] ^ 0xB3);
 
                     j.PatternDecrypted = new string(decrypted);

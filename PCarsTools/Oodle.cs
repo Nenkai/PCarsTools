@@ -20,7 +20,7 @@ namespace PCarsTools
         /// Oodle64 Decompression Method 
         /// </summary>
         [DllImport(OodleLibraryPath, CallingConvention = CallingConvention.Cdecl)]
-        private static extern long OodleLZ_Decompress(byte[] compBuf, long bufferSize, byte[] decodeTo, long outputBufferSize, int fuzz, 
+        private static extern long OodleLZ_Decompress(byte[] compBuf, long bufferSize, byte[] decodeTo, long outputBufferSize, int fuzz,
             int crc, int verbose, long dst_base, long e, long cb, long cb_ctx, long scratch, long scratch_size, int threadPhase);
 
         /// <summary>

@@ -18,7 +18,7 @@ namespace PCarsTools
 
         public const string TagId = "TOCL";
 
-        public string TocFilePath; 
+        public string TocFilePath;
         public BFileManager()
         {
 
@@ -35,7 +35,7 @@ namespace PCarsTools
 
             uint unk = bs.ReadUInt32();
             uint nPaks = bs.ReadUInt32();
-            
+
             for (int i = 0; i < nPaks; i++)
             {
                 bs.Position = 0x10 + (i * 0x110);
@@ -50,7 +50,7 @@ namespace PCarsTools
                 ulong uid = BUid.HashString(pakInfo.PakName);
                 PakInfos.Add(pakInfo);
             }
-                
+
             for (int i = 0; i < nPaks; i++)
             {
                 var pakInfo = PakInfos[i];

@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace PCarsTools.Encryption
 {
-    public class RC4
-    {
+	public class RC4
+	{
 		public static void Crypt(Span<byte> pwd, Span<byte> input, Span<byte> output, int len)
 		{
 			int a, i, j, k, tmp;
