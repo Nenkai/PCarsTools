@@ -14,6 +14,8 @@ using Syroot.BinaryData.Memory;
 using PCarsTools.Encryption;
 using PCarsTools.Config;
 
+using ICSharpCode.SharpZipLib.Zip.Compression;
+
 namespace PCarsTools
 {
     public class BPakFile
@@ -276,9 +278,19 @@ namespace PCarsTools
             else if (entry.Compression == PakFileCompressionType.ZLib)
             {
                 byte[] dec = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
-                using var ms = new MemoryStream(bytes);
-                using var uncompStream = new DeflateStream(ms, CompressionMode.Decompress);
-                int len = uncompStream.Read(dec);
+                int len;
+                if (bytes[0] == 0x78 && bytes[1] == 0x9C) // Zlib magic
+                {
+                    Inflater inflater = new Inflater(noHeader: false);
+                    inflater.SetInput(bytes, 0, (int)entry.PakSize);
+                    len = inflater.Inflate(dec);
+                }
+                else
+                {
+                    using var ms = new MemoryStream(bytes);
+                    using var uncompStream = new DeflateStream(ms, CompressionMode.Decompress);
+                    len = uncompStream.Read(dec);
+                }
 
                 if (len == entry.FileSize)
                     File.WriteAllBytes(output, dec);

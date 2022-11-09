@@ -22,7 +22,7 @@ namespace PCarsTools
             Console.WriteLine("PCarsTools 0.1.0 by Nenkai#9075");
             Console.WriteLine();
 
-            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatDecrypt, DecryptModelVerbs>(args)
+            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatVerbs, DecryptModelVerbs>(args)
                 .WithParsed<TocVerbs>(Toc)
                 .WithParsed<PakVerbs>(Pak)
                 .WithParsed<DecryptScriptVerbs>(DecryptScript)
@@ -191,9 +191,6 @@ namespace PCarsTools
         {
             [Option('i', "input", Required = true, HelpText = "Input file.")]
             public string InputPath { get; set; }
-
-            [Option('o', "output", Required = true, HelpText = "Output file.")]
-            public string OutputPath { get; set; }
         }
 
         [Verb("decryptmodel", HelpText = "Decrypt a build.dat file.")]
