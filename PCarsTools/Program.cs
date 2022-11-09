@@ -11,6 +11,7 @@ using CommandLine.Text;
 using PCarsTools.Config;
 using PCarsTools.Encryption;
 using PCarsTools.Script;
+using PCarsTools.Model;
 
 namespace PCarsTools
 {
@@ -21,11 +22,12 @@ namespace PCarsTools
             Console.WriteLine("PCarsTools 0.1.0 by Nenkai#9075");
             Console.WriteLine();
 
-            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatDecrypt>(args)
+            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatDecrypt, DecryptModelVerbs>(args)
                 .WithParsed<TocVerbs>(Toc)
                 .WithParsed<PakVerbs>(Pak)
                 .WithParsed<DecryptScriptVerbs>(DecryptScript)
                 .WithParsed<BuildDatVerbs>(BuildDat)
+                .WithParsed<DecryptModelVerbs>(DecryptModel)
                 .WithNotParsed(HandleNotParsedArgs);
         }
 
@@ -37,13 +39,20 @@ namespace PCarsTools
                 return;
             }
 
-            if (!File.Exists(options.ConfigPath))
+            if (!Directory.Exists(options.GameDirectory))
             {
-                Console.WriteLine($"Config file {options.InputPath} does not exist.");
+                Console.WriteLine($"Game directory {options.InputPath} does not exist.");
                 return;
             }
 
-            if (!BConfig.Instance.LoadConfig(options.ConfigPath))
+            string configFile = Path.Combine(options.GameDirectory, "Languages", "languages.bml");
+            if (!File.Exists(configFile))
+            {
+                Console.WriteLine($"Required config file (Languages/languages.bml) does not exist in game directory.");
+                return;
+            }
+
+            if (!BConfig.Instance.LoadConfig(configFile))
             {
                 Console.WriteLine($"Unable to load config file.");
                 return;
@@ -64,7 +73,7 @@ namespace PCarsTools
             if (options.UnpackAll)
             {
                 Console.WriteLine("Unpacking files...");
-                man.UnpackAll();
+                man.UnpackAll(options.GameDirectory);
             }
         }
 
@@ -76,19 +85,26 @@ namespace PCarsTools
                 return;
             }
 
-            if (!File.Exists(options.ConfigPath))
+            if (!Directory.Exists(options.GameDirectory))
             {
-                Console.WriteLine($"Config file {options.InputPath} does not exist.");
+                Console.WriteLine($"Game directory {options.InputPath} does not exist.");
                 return;
             }
 
-            if (!BConfig.Instance.LoadConfig(options.ConfigPath))
+            string configFile = Path.Combine(options.GameDirectory, "Languages", "languages.bml");
+            if (!File.Exists(configFile))
+            {
+                Console.WriteLine($"Required config file (Languages/languages.bml) does not exist in game directory.");
+                return;
+            }
+
+            if (!BConfig.Instance.LoadConfig(configFile))
             {
                 Console.WriteLine($"Unable to load config file.");
                 return;
             }
 
-            var pak = BPakFile.FromFile(options.InputPath);
+            var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
 
             if (pak is null)
             {
@@ -124,6 +140,11 @@ namespace PCarsTools
             Console.WriteLine($"Decrypted.");
         }
 
+        public static void DecryptModel(DecryptModelVerbs options)
+        {
+            MeshBinary.Load(options.InputPath);
+        }
+
         public static void HandleNotParsedArgs(IEnumerable<Error> errors)
         {
             ;
@@ -142,8 +163,8 @@ namespace PCarsTools
             [Option('i', "input", Required = true, HelpText = "Input TOC file.")]
             public string InputPath { get; set; }
 
-            [Option('c', "config", Required = true, HelpText = "Input config file. Should be languages/languages.bml. Needed to determine keys indexes.")]
-            public string ConfigPath { get; set; }
+            [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
+            public string GameDirectory { get; set; }
 
             [Option('u', "unpack-all", HelpText = "Whether to unpack the whole file system.")]
             public bool UnpackAll { get; set; }
@@ -155,8 +176,8 @@ namespace PCarsTools
             [Option('i', "input", Required = true, HelpText = "Input TOC file.")]
             public string InputPath { get; set; }
 
-            [Option('c', "config", Required = true, HelpText = "Input config file. Should be languages/languages.bml. Needed to determine keys indexes.")]
-            public string ConfigPath { get; set; }
+            [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
+            public string GameDirectory { get; set; }
 
             [Option('o', "output", HelpText = "Output directory. Defaults to the pak file name.")]
             public string OutputPath { get; set; }
@@ -165,7 +186,7 @@ namespace PCarsTools
             public bool UnpackAll { get; set; }
         }
 
-        [Verb("builddat", HelpText = "Decrypt a build.dat file.")]
+        [Verb("build-dat", HelpText = "Decrypt a build.dat file.")]
         public class BuildDatVerbs
         {
             [Option('i', "input", Required = true, HelpText = "Input file.")]
@@ -173,6 +194,13 @@ namespace PCarsTools
 
             [Option('o', "output", Required = true, HelpText = "Output file.")]
             public string OutputPath { get; set; }
+        }
+
+        [Verb("decryptmodel", HelpText = "Decrypt a build.dat file.")]
+        public class DecryptModelVerbs
+        {
+            [Option('i', "input", Required = true, HelpText = "Input file.")]
+            public string InputPath { get; set; }
         }
     }
 }

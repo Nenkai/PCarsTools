@@ -96,14 +96,19 @@ typedef struct
         int ExtInfoSize <format=hex, fgcolor=cGreen>;
         int SectionInfoPos <format=hex, fgcolor=cRed>;
         int SectionInfoSize <format=hex, fgcolor=cGreen>;
-        byte BigEndian;
-        enum <byte> ePakFileEncryption { None, TwoFish, RC4 } EncryptionFlags;
+        enum <byte> { NoFlags, BigEndian, HasExtInfo } Flags;
+        enum <byte> ePakFileEncryption { NoEncryption, TwoFish, RC4 } EncryptionFlags;
         short pad;
 
-        if (EncryptionFlags != None)
-            Printf("%s encrypted Yes\n", FileName);
+        if (EncryptionFlags != NoEncryption)
+            Printf("%s encrypted Yes", FileName);
         else
-            Printf("%s encrypted: No\n", FileName);
+            Printf("%s encrypted: No", FileName);
+
+        if (Flags & HasExtInfo)
+            Printf(", has ext info: Yes\n");
+        else
+            Printf(", has ext info: No\n");
     } header;
  
     struct PakFileTocEntries
@@ -111,30 +116,30 @@ typedef struct
         PakFileTocEntry infos[header.FileCount];
     } entries;
 
-    if (header.ExtInfoSize != 0)
+    if (header.ExtInfoSize != 0 && header.Flags == HasExtInfo)
     {
         struct ExtInfoTable
         {
-            byte extHeader[0x308]; // Always 0x308, must be
+            char Magic[0x04];
+            int unk;
+            byte extHeader[0x300]; // Always 0x308, must be
             local int i = 0;
 
-            if (header.EncryptionFlags == None)
+            struct ExtInfo
             {
-                struct ExtInfo
-                {
-                    int64 NameOffset <format=hex, fgcolor=cRed>;
-                    BTimeStamp stamp;
-                    
-                    if (header.EncryptionFlags == 0)
-                    {   
-                       local int tmp = FTell();
-                       FSeek(cPos + NameOffset);
-                       byte nLen;
-                       char Name[nLen];
-                       FSeek(tmp);
-                    }
-                } ExtInf[header.FileCount] <optimize=false>;
-            }
+                int64 NameOffset <format=hex, fgcolor=cRed>;
+                BTimeStamp stamp;
+                
+                if (header.EncryptionFlags == 0)
+                {   
+                   local int tmp = FTell();
+                   FSeek(cPos + NameOffset);
+                   byte nLen;
+                   char Name[nLen];
+                   FSeek(tmp);
+                }
+            } ExtInf[header.FileCount] <optimize=false>;
+            
         } ExtInfoTbl;
     }
 } Pak <optimize=false>;

@@ -63,7 +63,7 @@ namespace PCarsTools.Config
                 {
                     char[] decrypted = new char[j.Pattern.Length];
                     for (int k = 0; k < decrypted.Length; k++)
-                        decrypted[k] = (char)((byte)j.Pattern[k] ^ 0xB3);
+                        decrypted[k] = (char)((byte)j.Pattern[k] ^ (PatternFilters[0].Val >> 3)); // Xor
 
                     j.PatternDecrypted = new string(decrypted);
                 }

@@ -22,7 +22,7 @@ namespace PCarsTools
 
         public BVersion Version { get; set; }
         public string Name { get; set; }
-        public bool BigEndian { get; set; }
+        public ePakFlags Flags { get; set; }
         public eEncryptionType EncryptionType { get; set; }
 
         public List<BPakFileTocEntry> Entries { get; set; }
@@ -32,22 +32,31 @@ namespace PCarsTools
 
         private FileStream _fs;
 
-        private string _path;
+        /// <summary>
+        /// From TOC file
+        /// </summary>
+        public string Path { get; set; }
 
-        public static BPakFile FromFile(string inputFile)
+        /// <summary>
+        /// Reads a pak file from a provided file name.
+        /// </summary>
+        /// <param name="inputFile"></param>
+        /// <param name="withExtraInfo"></param>
+        /// <returns></returns>
+        public static BPakFile FromFile(string inputFile, bool withExtraInfo = true)
         {
             var fs = new FileStream(inputFile, FileMode.Open);
-            var pak = FromStream(fs, inputFile);
+            var pak = FromStream(fs, withExtraInfo: withExtraInfo, tocFileName: inputFile);
             pak._fs = fs;
 
             return pak;
         }
 
-        public static BPakFile FromStream(Stream stream, string filename = null)
+        public static BPakFile FromStream(Stream stream, bool withExtraInfo = false, string tocFileName = null)
         {
             var pak = new BPakFile();
             int pakOffset = (int)stream.Position;
-            pak._path = filename.ToLower().Replace('/', '\\');
+            pak.Path = tocFileName.ToLower().Replace('/', '\\');
 
             using var bs = new BinaryStream(stream, leaveOpen: true);
             int mID = bs.ReadInt32();
@@ -56,16 +65,18 @@ namespace PCarsTools
             bs.Position += 12;
             pak.Name = bs.ReadString(0x100).TrimEnd('\0');
 
+            bool keyIndexFound = false;
             pak.KeyIndex = BConfig.Instance.GetPatternIdx(pak.Name);
-            if (pak.KeyIndex == 0 && !string.IsNullOrEmpty(pak._path)) // Default key found, try to see if its in the path
+            if (pak.KeyIndex == 0 && !string.IsNullOrEmpty(pak.Path)) // Default key found, try to see if its in the path
             {
                 foreach (var filter in BConfig.Instance.PatternFilters)
                 {
                     foreach (var rule in filter.PatternRules)
                     {
-                        if (pak._path.Contains(rule.PatternDecrypted))
+                        if (pak.Path.Contains(rule.PatternDecrypted))
                         {
                             pak.KeyIndex = filter.Index;
+                            keyIndexFound = true;
                             goto found;
                         }
                     }
@@ -78,7 +89,7 @@ namespace PCarsTools
             uint crc = bs.ReadUInt32();
             uint extInfoSize = bs.ReadUInt32();
             bs.Position += 8;
-            pak.BigEndian = bs.ReadBoolean(BooleanCoding.Byte);
+            pak.Flags = (ePakFlags)bs.Read1Byte();
             pak.EncryptionType = (eEncryptionType)bs.Read1Byte();
             bs.Position += 2;
 
@@ -86,7 +97,7 @@ namespace PCarsTools
 
             if (pak.EncryptionType != eEncryptionType.None)
             {
-                if (pak.KeyIndex == 0) // Still not found? Attempt bruteforce
+                if (!keyIndexFound && pak.KeyIndex == 0) // Still not found? Attempt bruteforce
                 {
                     int j = 0;
                     for (int i = 0; i < 32; i++)
@@ -125,56 +136,57 @@ namespace PCarsTools
                 pak.Entries.Add(pakFileToCEntry);
             }
 
-            const int unkCertXmlSize = 0x308;
-            bs.Position += unkCertXmlSize;
-
-            int baseExtOffset = (int)bs.Position - pakOffset;
-            int extInfoEntriesSize = (int)Utils.AlignValue(extInfoSize - unkCertXmlSize, 0x10);
-            var extTocBuffer = bs.ReadBytes(extInfoEntriesSize);
-
-            bool returnBuffer = false;
-            if (pak.EncryptionType != eEncryptionType.None)
+            if (withExtraInfo)
             {
-                var scribeDecrypt = new ScribeDecrypt();
-                scribeDecrypt.CreateSchedule();
+                const int unkCertXmlSize = 0x308;
+                bs.Position += unkCertXmlSize;
 
-                if (extTocBuffer.Length % 0x10 != 0) // Must be aligned to 0x10
+                int baseExtOffset = (int)bs.Position - pakOffset;
+                int extInfoEntriesSize = (int)Utils.AlignValue(extInfoSize - unkCertXmlSize, 0x10);
+                var extTocBuffer = bs.ReadBytes(extInfoEntriesSize);
+
+                bool returnBuffer = false;
+                if (pak.EncryptionType != eEncryptionType.None)
                 {
-                    int rem = extTocBuffer.Length % 0x10;
-                    byte[] extTocBufferAligned = ArrayPool<byte>.Shared.Rent(extTocBuffer.Length + rem);
-                    extTocBuffer.AsSpan().CopyTo(extTocBufferAligned);
-                    extTocBuffer = extTocBufferAligned;
-                    returnBuffer = true;
+                    var scribeDecrypt = new ScribeDecrypt();
+                    scribeDecrypt.CreateSchedule();
+
+                    if (extTocBuffer.Length % 0x10 != 0) // Must be aligned to 0x10
+                    {
+                        int rem = extTocBuffer.Length % 0x10;
+                        byte[] extTocBufferAligned = ArrayPool<byte>.Shared.Rent(extTocBuffer.Length + rem);
+                        extTocBuffer.AsSpan().CopyTo(extTocBufferAligned);
+                        extTocBuffer = extTocBufferAligned;
+                        returnBuffer = true;
+                    }
+
+                    var d = MemoryMarshal.Cast<byte, uint>(extTocBuffer);
+                    scribeDecrypt.Decrypt(d);
                 }
 
-                var d = MemoryMarshal.Cast<byte, uint>(extTocBuffer);
-                scribeDecrypt.Decrypt(d);
-            }
-
-            pak.ExtEntries = new List<BExtendedFileInfoEntry>(fileCount);
-            sr = new SpanReader(extTocBuffer);
-            for (int i = 0; i < fileCount; i++)
-            {
-                sr.Position = i * 0x10;
-
-                var extEntry = new BExtendedFileInfoEntry();
-                extEntry.Offset = sr.ReadInt64();
-                extEntry.TimeStamp = sr.ReadInt64();
-
-                sr.Position = (int)extEntry.Offset - baseExtOffset;
-                extEntry.Path = sr.ReadString1();
-
-                pak.ExtEntries.Add(extEntry);
-
-                if (extEntry.Path.Contains(@"Properties\GUI\FontsMetadata.bin", StringComparison.OrdinalIgnoreCase))
+                pak.ExtEntries = new List<BExtendedFileInfoEntry>(fileCount);
+                sr = new SpanReader(extTocBuffer);
+                for (int i = 0; i < fileCount; i++)
                 {
-                    var bytes = File.ReadAllBytes(@"C:\Users\nenkai\Desktop\Hydra\64bit\Properties\GUI\FontsMetadata.bin");
-                    BPakFileEncryption.DecryptData(pak.EncryptionType, bytes, bytes.Length, pak.KeyIndex);
-                }
-            }
+                    sr.Position = i * 0x10;
 
-            if (returnBuffer)
-                ArrayPool<byte>.Shared.Return(extTocBuffer);
+                    var extEntry = new BExtendedFileInfoEntry();
+                    extEntry.Offset = sr.ReadInt64();
+                    extEntry.TimeStamp = sr.ReadInt64();
+
+                    sr.Position = (int)extEntry.Offset - baseExtOffset;
+                    extEntry.Path = sr.ReadString1();
+
+                    ulong uid = BHashCode.CreateUidRaw(extEntry.Path);
+                    if (pak.Entries[i].UId != uid)
+                        Console.WriteLine($"Warning - unmatched UID/Hash: {extEntry.Path} (target={pak.Entries[i].UId:X16}, got={uid}");
+
+                    pak.ExtEntries.Add(extEntry);
+                }
+
+                if (returnBuffer)
+                    ArrayPool<byte>.Shared.Return(extTocBuffer);
+            }
 
             return pak;
         }
@@ -189,8 +201,8 @@ namespace PCarsTools
                 var entry = Entries[i];
                 var extEntry = ExtEntries[i];
 
-                string outPath = Path.Combine(outputDir, extEntry.Path);
-                Directory.CreateDirectory(Path.GetDirectoryName(outPath));
+                string outPath = System.IO.Path.Combine(outputDir, extEntry.Path);
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(outPath));
 
                 if (UnpackFromStream(entry, extEntry, outPath))
                 {
@@ -207,12 +219,12 @@ namespace PCarsTools
             Console.WriteLine($"Done. Extracted {totalCount} files ({failed} not extracted)");
         }
 
-        public bool UnpackFromLocalFile(string outputDir, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry)
+        public bool UnpackFromLocalStoredFile(string outputDir, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry)
         {
             if (_fs is not null)
                 throw new InvalidOperationException("Can't extract from local file when the pak is an actual file with data");
 
-            string localPath = Path.Combine(outputDir, extEntry.Path);
+            string localPath = System.IO.Path.Combine(outputDir, extEntry.Path);
             if (File.Exists(localPath))
             {
                 return UnpackFromFile(entry, extEntry, localPath, localPath + ".dec");
@@ -288,5 +300,14 @@ namespace PCarsTools
 
             return false;
         }
+    }
+
+
+    [Flags]
+    public enum ePakFlags
+    {
+        None,
+        BigEndian = 1,
+        FilesOnDisk = 2
     }
 }

@@ -47,7 +47,7 @@ namespace PCarsTools
                 bs.ReadUInt32();
                 pakInfo.PakName = bs.ReadString(0x100).TrimEnd('\0');
 
-                ulong uid = BUid.HashString(pakInfo.PakName);
+                ulong uid = BHashCode.CreateUidRaw(pakInfo.PakName);
                 PakInfos.Add(pakInfo);
             }
 
@@ -55,7 +55,12 @@ namespace PCarsTools
             {
                 var pakInfo = PakInfos[i];
                 bs.Position = pakInfo.PakOffset;
-                var pak = BPakFile.FromStream(bs, null);
+
+                bool hasExtraInfo = false;
+                if (fileName.Contains("compressed.toc")) // PCars GO
+                    hasExtraInfo = true;
+
+                var pak = BPakFile.FromStream(bs, withExtraInfo: hasExtraInfo, pakInfo.PakName);
                 Paks.Add(pak);
             }
 
@@ -63,26 +68,46 @@ namespace PCarsTools
             return true;
         }
 
-        public void UnpackAll()
+        public void UnpackAll(string gameDirectory)
         {
             int totalCount = 0;
             int failed = 0;
             foreach (var pak in Paks)
             {
-                for (int i = 0; i < pak.Entries.Count; i++)
+                // In PCARS, the ToC file entries contain metadata for each pak that it refers to, no actual data
+                // Each pak entry does contain the entries but not the extra infos, it merely links to the bff anyway.
+                if (File.Exists(Path.Combine(gameDirectory, pak.Path)))
                 {
-                    var entry = pak.Entries[i];
-                    var extEntry = pak.ExtEntries[i];
+                    Console.WriteLine($"PAK Reference in ToC: {pak.Path}");
+                    string pakPath = Path.Combine(gameDirectory, pak.Path);
+                    BPakFile pakWithData = BPakFile.FromFile(pakPath, withExtraInfo: true); // Actual packs have extra infos
 
-                    if (pak.UnpackFromLocalFile(TocFilePath, entry, extEntry))
+                    string outputDir = Path.GetDirectoryName(pakPath);
+                    Directory.CreateDirectory(outputDir);
+                    pakWithData.UnpackAll(outputDir);
+                }
+                else
+                {
+                    // Assume PCars GO where the paths don't point to an existing bff, more of a mount point of some sort
+                    // In PCARS GO, each pak entries does have the extra infos, and link to actual files that are encrypted on disk
+                    for (int i = 0; i < pak.Entries.Count; i++)
                     {
-                        Console.WriteLine($"Unpacked: [{pak.Name}]\\{extEntry.Path}");
-                        totalCount++;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to unpack: {extEntry.Path}");
-                        failed++;
+                        var entry = pak.Entries[i];
+                        BExtendedFileInfoEntry extEntry = null;
+                        if (pak.Flags.HasFlag(ePakFlags.FilesOnDisk))
+                            extEntry = pak.ExtEntries[i];
+
+                        // PCars GO, where files are just stored but encrypted, referenced by the toc
+                        if (pak.UnpackFromLocalStoredFile(TocFilePath, entry, extEntry))
+                        {
+                            Console.WriteLine($"Unpacked: [{pak.Name}]\\{extEntry.Path}");
+                            totalCount++;
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to unpack: {extEntry.Path}");
+                            failed++;
+                        }
                     }
                 }
             }
