@@ -143,6 +143,7 @@ namespace PCarsTools
         public static void DecryptModel(DecryptModelVerbs options)
         {
             MeshBinary.Load(options.InputPath);
+            Console.WriteLine("Model decrypted/encrypted.");
         }
 
         public static void HandleNotParsedArgs(IEnumerable<Error> errors)

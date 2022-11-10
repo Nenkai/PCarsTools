@@ -19,22 +19,27 @@ namespace PCarsTools.Script
             0xD7,//0x00,0x48,0x61,0x28,0x70,0x41,0x65,0x47,0x38,0x77,0x6F,0x45,0x31,0x78
         };
 
+        // They hid a god damn proprietary "scribe" script in a fake bitmap as an executable resource, amazing
         public static void Decrypt(byte[] bytes)
         {
             SpanReader sr = new SpanReader(bytes);
-            sr.Position = 0x28; //0x28;
+            sr.Position = 0x28;
 
             if (sr.ReadUInt32() != Magic)
-                return;
-            int fileCount = sr.ReadInt32();
+            {
+                sr.Position = 0x36;
+                if (sr.ReadUInt32() != Magic)
+                    return;
+            }
 
+            int fileCount = sr.ReadInt32();
             var key = GetDecKeyScribe();
 
             for (int i = 0; i < fileCount; i++)
             {
                 int size = sr.ReadInt32();
                 ulong scriptNameUid = sr.ReadUInt64();
-                sr.Position += 4;
+                sr.Position += 4; // Empty
 
                 var encBuffer = sr.ReadBytes(size);
                 RC4.Crypt(key, encBuffer, encBuffer, encBuffer.Length);
