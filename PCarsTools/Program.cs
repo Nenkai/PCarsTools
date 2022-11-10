@@ -19,7 +19,7 @@ namespace PCarsTools
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("PCarsTools 0.1.0 by Nenkai#9075");
+            Console.WriteLine("PCarsTools 1.0.0 by Nenkai#9075");
             Console.WriteLine();
 
             Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatVerbs, DecryptModelVerbs>(args)
@@ -167,7 +167,7 @@ namespace PCarsTools
             [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
             public string GameDirectory { get; set; }
 
-            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole file system.")]
+            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole toc.")]
             public bool UnpackAll { get; set; }
         }
 
@@ -183,7 +183,7 @@ namespace PCarsTools
             [Option('o', "output", HelpText = "Output directory. Defaults to the pak file name.")]
             public string OutputPath { get; set; }
 
-            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole file system.")]
+            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole pak.")]
             public bool UnpackAll { get; set; }
         }
 
@@ -194,7 +194,7 @@ namespace PCarsTools
             public string InputPath { get; set; }
         }
 
-        [Verb("decryptmodel", HelpText = "Decrypt a build.dat file.")]
+        [Verb("decryptmodel", HelpText = "Decrypts model files (.meb)")]
         public class DecryptModelVerbs
         {
             [Option('i', "input", Required = true, HelpText = "Input file.")]
