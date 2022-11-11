@@ -239,8 +239,18 @@ typedef struct
 struct MeshBinary
 {
    BVersion ver;
-   if (ver.Minor > 2)
-    int unk;
+
+   if (ver.Minor == 2)
+     byte HasBones;
+   else
+   {    
+     byte HasBones;
+     byte DynamicEnvMapRequired;
+   }
+
+   if (ver.Minor >= 4)
+     short unk2;
+
    string Name;
 
     if (ver.Minor >= 4)
@@ -256,6 +266,24 @@ struct MeshBinary
     float boundingAABBMax_y;
     float boundingAABBMax_z;
     
+    if (HasBones && ver.Minor >= 2)
+    {
+        struct
+        {
+            int numBones;
+            int boneNameSize <format=hex>;
+
+            struct
+            {
+                string name;
+            } BoneNames[numBones] <optimize=false>;
+            FSeek((FTell() + 3 & 0xFFFFFFFC)); // Align
+
+            BVec4F referenceTransforms[numBones];
+            BVec4F boneReferenceInverseTransforms[numBones];
+            BVec4F unk[numBones];
+        } Bones;
+    }
     MeshStream meshes[NumStreams];
 
     // Index buffers

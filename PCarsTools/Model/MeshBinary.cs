@@ -23,9 +23,18 @@ namespace PCarsTools.Model
 
             BVersion version = new BVersion(bs.ReadUInt32());
 
-            if (version.Minor > 2)
+            bool HasBones;
+            if (version.Minor == 2)
+                HasBones = bs.ReadBoolean();
+            else
             {
-                int unk = bs.ReadInt32();
+                HasBones = bs.ReadBoolean();
+                bool DynamicEnvMapRequired = bs.ReadBoolean();
+            }
+
+            if (version.Minor >= 4)
+            {
+                short unk2 = bs.ReadInt16();
             }
 
             string name = bs.ReadString(StringCoding.ZeroTerminated);
@@ -47,6 +56,18 @@ namespace PCarsTools.Model
 
             Console.WriteLine($"Verts per stream: {NumVertsPerStream}");
 
+            if (HasBones && version.Minor >= 2)
+            {
+                int numBones = bs.ReadInt32();
+                int boneStrSize = bs.ReadInt32();
+                string[] boneNames = bs.ReadStrings(numBones, StringCoding.ZeroTerminated);
+                bs.Align(0x04);
+
+                bs.Position += 0x10 * numBones; // referenceTransforms Vec4F
+                bs.Position += 0x10 * numBones; // boneReferenceInverseTransforms Vec4F
+                bs.Position += 0x10 * numBones; // unk Vec4F
+            }
+    
             // This is normally const expr'd
             int baseXor = (int)MathF.Floor(MathF.Log10(1.49f) * 1000.0f) |
                           ((int)MathF.Floor(MathF.Tan(0.418f) * 500.0f) << 8) |
@@ -61,19 +82,32 @@ namespace PCarsTools.Model
                 if (semantic != SemanticName.POSITION)
                     throw new Exception("Expected POSITION stream in meb as first entry");
 
+                if (format != DXGIFORMAT.DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
+                {
+                    Console.WriteLine($"POSITION stream format is not {DXGIFORMAT.DXGI_FORMAT_D32_FLOAT_S8X24_UINT}, model vertices are not encrypted.");
+                    return;
+                }    
+
                 int semanticIndex = bs.ReadInt32();
 
                 for (var j = 0; j < NumVertsPerStream; j++)
                 {
-                    // Decrypt X axis
-                    uint cXor = encryptionKey ^ (uint)baseXor;
-                    cXor ^= (uint)j;
-                    uint xEnc = bs.ReadUInt32();
-                    xEnc ^= BitOperations.RotateLeft(cXor, j % 32);
+                    if (format == DXGIFORMAT.DXGI_FORMAT_D32_FLOAT_S8X24_UINT)
+                    {
+                        // Decrypt X axis
+                        uint cXor = encryptionKey ^ (uint)baseXor;
+                        cXor ^= (uint)j;
+                        uint xEnc = bs.ReadUInt32();
+                        xEnc ^= BitOperations.RotateLeft(cXor, j % 32);
 
-                    float x = BitConverter.Int32BitsToSingle((int)xEnc);
-                    bs.Position -= 4;
-                    bs.WriteSingle(x);
+                        float x = BitConverter.Int32BitsToSingle((int)xEnc);
+                        bs.Position -= 4;
+                        bs.WriteSingle(x);
+                    }
+                    else
+                    {
+                        float x = bs.ReadSingle();
+                    }
 
                     float y = bs.ReadSingle();
                     float z = bs.ReadSingle();
