@@ -267,12 +267,15 @@ namespace PCarsTools
 
             if (entry.Compression == PakFileCompressionType.Mermaid || entry.Compression == PakFileCompressionType.Kraken)
             {
-                byte[] dec = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
-                bool res = Oodle.Decompress(bytes, dec, entry.FileSize);// Implement this
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+                bool res = Oodle.Decompress(bytes, decBuffer, entry.FileSize);// Implement this
                 if (res)
-                    File.WriteAllBytes(output, dec);
+                {
+                    using var fs = new FileStream(output, FileMode.Create);
+                    fs.Write(decBuffer, 0, (int)entry.FileSize);
+                }
 
-                ArrayPool<byte>.Shared.Return(dec);
+                ArrayPool<byte>.Shared.Return(decBuffer);
                 return res;
             }
             else if (entry.Compression == PakFileCompressionType.ZLib)
