@@ -113,9 +113,11 @@ namespace PCarsTools
             }
 
             if (string.IsNullOrEmpty(options.OutputPath))
-                options.OutputPath = pak.Name;
-
-            pak.UnpackAll(pak.Name);
+            {
+                options.OutputPath = Path.Combine(Path.GetDirectoryName(options.InputPath), pak.Name + "_extracted");
+                Directory.CreateDirectory(options.OutputPath);
+            }
+            pak.UnpackAll(options.OutputPath);
         }
 
         public static void DecryptScript(DecryptScriptVerbs options)
@@ -182,9 +184,6 @@ namespace PCarsTools
 
             [Option('o', "output", HelpText = "Output directory. Defaults to the pak file name.")]
             public string OutputPath { get; set; }
-
-            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole pak.")]
-            public bool UnpackAll { get; set; }
         }
 
         [Verb("build-dat", HelpText = "Decrypt a build.dat file.")]
