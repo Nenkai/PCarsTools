@@ -277,25 +277,29 @@ namespace PCarsTools
             }
             else if (entry.Compression == PakFileCompressionType.ZLib)
             {
-                byte[] dec = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+
                 int len;
                 if (bytes[0] == 0x78 && bytes[1] == 0x9C) // Zlib magic
                 {
                     Inflater inflater = new Inflater(noHeader: false);
                     inflater.SetInput(bytes, 0, (int)entry.PakSize);
-                    len = inflater.Inflate(dec);
+                    len = inflater.Inflate(decBuffer, 0, (int)entry.FileSize);
                 }
                 else
                 {
                     using var ms = new MemoryStream(bytes);
                     using var uncompStream = new DeflateStream(ms, CompressionMode.Decompress);
-                    len = uncompStream.Read(dec);
+                    len = uncompStream.Read(decBuffer.AsSpan(0, (int)entry.FileSize));
                 }
 
                 if (len == entry.FileSize)
-                    File.WriteAllBytes(output, dec);
+                {
+                    using var fs = new FileStream(output, FileMode.Create);
+                    fs.Write(decBuffer, 0, len);
+                }
 
-                ArrayPool<byte>.Shared.Return(dec);
+                ArrayPool<byte>.Shared.Return(decBuffer);
                 return len == entry.FileSize;
             }
             else if (entry.Compression != PakFileCompressionType.None)
