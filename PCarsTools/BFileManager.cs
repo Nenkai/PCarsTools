@@ -82,7 +82,8 @@ namespace PCarsTools
                     string pakPath = Path.Combine(gameDirectory, pak.Path);
                     BPakFile pakWithData = BPakFile.FromFile(pakPath, withExtraInfo: true); // Actual packs have extra infos
 
-                    string outputDir = Path.GetDirectoryName(pakPath);
+                    string outputDir = Path.Combine(Path.GetDirectoryName(pakPath), pak.Name + "_extracted");
+
                     Directory.CreateDirectory(outputDir);
                     pakWithData.UnpackAll(outputDir);
                 }

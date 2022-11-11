@@ -169,7 +169,10 @@ namespace PCarsTools
             [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
             public string GameDirectory { get; set; }
 
-            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole toc.")]
+            [Option('o', "output")]
+            public string OutputDirectory { get; set; }
+
+            [Option('u', "unpack-all", HelpText = "Whether to unpack the whole toc. If not provided, nothing will be extracted.")]
             public bool UnpackAll { get; set; }
         }
 
