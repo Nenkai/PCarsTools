@@ -23,18 +23,36 @@ namespace PCarsTools.Model
 
             BVersion version = new BVersion(bs.ReadUInt32());
 
-            bool HasBones;
+            bool HasBones = false;
             if (version.Minor == 2)
+            {
                 HasBones = bs.ReadBoolean();
-            else
+            }
+            else if (version.Minor == 4 || version.Minor == 5)
+            {
+                HasBones = bs.ReadBoolean(); ;
+                bool DynamicEnvMapRequired = bs.ReadBoolean();
+                bs.Position += 2;
+            }
+            else if (version.Minor == 6)
             {
                 HasBones = bs.ReadBoolean();
                 bool DynamicEnvMapRequired = bs.ReadBoolean();
+                byte Flags = bs.Read1Byte();
+                byte cpuReason = bs.Read1Byte();
+                byte empty = bs.Read1Byte();
+                byte unkBool = bs.Read1Byte();
+                bs.Position += 2;
             }
-
-            if (version.Minor >= 4)
+            else if (version.Minor >= 7)
             {
-                short unk2 = bs.ReadInt16();
+                HasBones = bs.ReadBoolean();
+                bool DynamicEnvMapRequired = bs.ReadBoolean();
+                byte Flags = bs.Read1Byte();
+                byte cpuReason = bs.Read1Byte();
+                byte empty = bs.Read1Byte();
+                byte unkBool = bs.Read1Byte();
+                bs.Position += 2;
             }
 
             string name = bs.ReadString(StringCoding.ZeroTerminated);
