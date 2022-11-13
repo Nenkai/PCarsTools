@@ -7,6 +7,7 @@ using System.IO;
 
 using PCarsTools.Encryption;
 using PCarsTools.Xml;
+using System.Buffers.Binary;
 
 namespace PCarsTools.Config
 {
@@ -16,7 +17,12 @@ namespace PCarsTools.Config
 
         private BXmlFile _xml;
 
-        private byte[] _configKey = new byte[]
+        private byte[] _configKey_PC1 = new byte[]
+        {
+            0xCA, 0xE9, 0xA1, 0xC1, 0x93, 0xC7, 0xC6, 0xAD, 0xA4, 0x98, 0x94, 0xCC, 0xCE, 0xFA, 0xF6, 0x93
+        };
+
+        private byte[] _configKey_PC2AndAbove = new byte[]
         {
             0xEF, 0xEE, 0xC0, 0xCD, 0x92, 0xA6, 0x97, 0xF2, 0xE8, 0xDC, 0x80, 0xDC, 0xEE, 0xA1, 0xA0, 0xDA,
         };
@@ -26,7 +32,31 @@ namespace PCarsTools.Config
         public bool LoadConfig(string fileName)
         {
             var fileData = File.ReadAllBytes(fileName);
-            BPakFileEncryption.DecryptTwoFish(fileData, _configKey);
+
+            byte[] tmpData = new byte[fileData.Length];
+            fileData.AsSpan().CopyTo(tmpData);
+
+            // Try PC1 Key
+            BPakFileEncryption.DecryptTwoFish(tmpData, _configKey_PC1);
+            if (BinaryPrimitives.ReadInt32LittleEndian(tmpData) == 0x594D4C42)
+            {
+                fileData = tmpData;
+            }
+            else
+            {
+                // Try PC2+ Key
+                fileData.AsSpan().CopyTo(tmpData);
+                BPakFileEncryption.DecryptTwoFish(tmpData, _configKey_PC2AndAbove);
+
+                if (BinaryPrimitives.ReadInt32LittleEndian(tmpData) == 0x594D4C42)
+                {
+                    fileData = tmpData;
+                }
+                else
+                {
+                    throw new Exception("Failed to decrypt config file (Languages/Languages.bml)");
+                }
+            }
 
             if (fileData.Length < 0x10)
                 return false;
