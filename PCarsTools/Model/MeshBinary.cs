@@ -92,8 +92,10 @@ namespace PCarsTools.Model
                           ((int)MathF.Floor(MathF.Cos(1.3561f) * 1000.0f) << 16) |
                           ((int)MathF.Floor(MathF.Sin(0.74f) * 100.0f) + (int)MathF.Floor(MathF.Sin(0.45f) * 100.0f) << 24);
 
+            long positionFormatOffset = 0;
             for (var i = 0; i < NumStreams; i++)
             {
+                positionFormatOffset = bs.Position;
                 DXGIFORMAT format = (DXGIFORMAT)bs.ReadInt32();
                 SemanticName semantic = (SemanticName)bs.ReadInt32();
 
@@ -132,7 +134,14 @@ namespace PCarsTools.Model
                 }
 
                 // Our job here is done
-                return;
+                break;
+            }
+
+            // Change format to decrypted floats
+            if (positionFormatOffset != 0)
+            {
+                bs.Position = positionFormatOffset;
+                bs.WriteInt32((int)DXGIFORMAT.DXGI_FORMAT_R32G32B32A32_FLOAT);
             }
         }
 
