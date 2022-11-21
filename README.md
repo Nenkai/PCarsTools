@@ -1,6 +1,12 @@
 # PCarsTools
 
-Sets of tools to fully unpack (with file names) and decrypt Project Cars related files.
+Sets of tools to fully unpack (with file names) and decrypt Project Cars related files. 
+
+Supports:
+* Project Cars 1
+* Project Cars 2
+* Project Cars 3
+* Project Cars GO
 
 Allows:
 - PAK unpacking (with file names)
