@@ -19,6 +19,7 @@ namespace PCarsTools
     {
         static void Main(string[] args)
         {
+            int x = XCompression.Constants.DefaultChunkSize;
             Console.WriteLine("PCarsTools 1.0.2 by Nenkai#9075");
             Console.WriteLine();
 
@@ -65,6 +66,9 @@ namespace PCarsTools
                 return;
             }
 
+            if (options.PCars1)
+                BPakFileEncryption.SetKeyset(KeysetType.PC1);
+
             Console.WriteLine("Paks in TOC:");
             for (int i = 0; i < man.Paks.Count; i++)
                 Console.WriteLine($" - {man.Paks[i].Name} ({man.Paks[i].Entries.Count} entries, Encryption: {man.Paks[i].EncryptionType})");
@@ -104,8 +108,10 @@ namespace PCarsTools
                 return;
             }
 
-            var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
+            if (options.PCars1)
+                BPakFileEncryption.SetKeyset(KeysetType.PC1);
 
+            var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
             if (pak is null)
             {
                 Console.WriteLine($"Unable to load pak file.");
@@ -174,6 +180,9 @@ namespace PCarsTools
 
             [Option('u', "unpack-all", HelpText = "Whether to unpack the whole toc. If not provided, nothing will be extracted.")]
             public bool UnpackAll { get; set; }
+
+            [Option("pc1", HelpText = "Use this if unpacking from Project Cars 1  or earlier than Project Cars 2 (different encryption keys)")]
+            public bool PCars1 { get; set; }
         }
 
         [Verb("pak", HelpText = "Unpacks files from a pak file.")]
@@ -187,6 +196,9 @@ namespace PCarsTools
 
             [Option('o', "output", HelpText = "Output directory. Defaults to the pak file name.")]
             public string OutputPath { get; set; }
+
+            [Option("pc1", HelpText = "Use this if unpacking from Project Cars 1 or earlier than Project Cars 2 (different encryption keys)")]
+            public bool PCars1 { get; set; }
         }
 
         [Verb("build-dat", HelpText = "Decrypt a build.dat file.")]

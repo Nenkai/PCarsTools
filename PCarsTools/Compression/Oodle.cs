@@ -7,7 +7,7 @@ using System.IO;
 
 using System.Runtime.InteropServices;
 
-namespace PCarsTools
+namespace PCarsTools.Compression
 {
     public class Oodle
     {

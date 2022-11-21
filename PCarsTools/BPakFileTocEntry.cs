@@ -23,6 +23,7 @@ namespace PCarsTools
     {
         None,
         ZLib = 1,
+        LZX = 2, // Project Cars 1
         Mermaid = 3,
         Kraken = 4,
     }

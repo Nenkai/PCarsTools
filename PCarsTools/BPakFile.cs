@@ -15,6 +15,8 @@ using PCarsTools.Encryption;
 using PCarsTools.Config;
 
 using ICSharpCode.SharpZipLib.Zip.Compression;
+using PCarsTools.Compression;
+using XCompression;
 
 namespace PCarsTools
 {
@@ -304,6 +306,26 @@ namespace PCarsTools
 
                 ArrayPool<byte>.Shared.Return(decBuffer);
                 return len == entry.FileSize;
+            }
+            else if (entry.Compression == PakFileCompressionType.LZX)
+            {
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+
+                var decompContext = new DecompressionContext();
+                int pakLen = (int)entry.PakSize;
+                int outLen = (int)entry.FileSize;
+                ErrorCode err = decompContext.Decompress(bytes, 0, ref pakLen, decBuffer, 0, ref outLen);
+                if (err != ErrorCode.None)
+                    Console.WriteLine($"Error: Failed to unpack {extEntry.Path} (XMemDecompress/LZX) - Code: {(int)err:X8}");
+
+                if (outLen == entry.FileSize)
+                {
+                    using var fs = new FileStream(output, FileMode.Create);
+                    fs.Write(decBuffer, 0, outLen);
+                }
+
+                ArrayPool<byte>.Shared.Return(decBuffer);
+                return outLen == entry.FileSize;
             }
             else if (entry.Compression != PakFileCompressionType.None)
             {
