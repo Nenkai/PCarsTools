@@ -7,6 +7,7 @@ Supports:
 * Project Cars 2
 * Project Cars 3
 * Project Cars GO
+* Test Drive Ferrari Racing Legends
 
 Allows:
 - PAK unpacking (with file names)
@@ -20,10 +21,10 @@ NOTE: Requires oo2core_7_win64 dll file for later games, not included in this re
 ## Usage
 
 * TOC Unpack
-  * `PCarsTools toc -i <.../TOCFiles/DirPaks.toc> -g <path to game directory>`
+  * `PCarsTools toc -i <.../TOCFiles/DirPaks.toc> -g <path to game directory> [--game-type <PC1 or TDFRL>]`
   
 * PAK Unpack
-  * `PCarsTools pak -i <path to pak> -g <path_to_game_directory>`
+  * `PCarsTools pak -i <path to pak> -g <path_to_game_directory> [--game-type <PC1 or TDFRL>]`
   
 * Script decryption
   * `PCarsTools decryptscript -i <path to script>` (script is extracted from executable, normally red bmp file)
