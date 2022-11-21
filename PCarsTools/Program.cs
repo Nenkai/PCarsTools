@@ -13,7 +13,6 @@ using PCarsTools.Encryption;
 using PCarsTools.Script;
 using PCarsTools.Model;
 using Syroot.BinaryData;
-using XeXtractor;
 
 namespace PCarsTools
 {

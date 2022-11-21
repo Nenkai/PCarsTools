@@ -353,8 +353,6 @@ namespace PCarsTools
                 File.WriteAllBytes(output, bytes);
                 return true;
             }
-
-            return false;
         }
     }
 
