@@ -169,7 +169,7 @@ namespace PCarsTools
                     scribeDecrypt.CreateSchedule();
                     scribeDecrypt.Decrypt(tmpInts);
 
-                    if (tmp[6] != 0 && tmp[7] != 0)
+                    if (tmp[6] != 0 || tmp[7] != 0)
                     {
                         // presumably failed to decrypt, try RC4 with key 0 (used in TDFRL)
                         // assumingly older than PC1 just used regular RC4
@@ -181,6 +181,8 @@ namespace PCarsTools
 
                         extTocBuffer = tmp;
                     }
+
+                    extTocBuffer = tmp;
                 }
 
                 pak.ExtEntries = new List<BExtendedFileInfoEntry>(fileCount);
