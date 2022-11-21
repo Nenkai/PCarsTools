@@ -141,7 +141,7 @@ namespace PCarsTools.Encryption
 			for (int i = 0; i < key.Length; i++)
 			{
 				if (key[i] == 0)
-					return key.AsSpan(0, i);
+					return key.ToArray().AsSpan(0, i);
 			}
 
 			throw new Exception("Impossible");
