@@ -152,9 +152,6 @@ namespace PCarsTools
                 bool returnBuffer = false;
                 if (pak.EncryptionType != eEncryptionType.None)
                 {
-                    var scribeDecrypt = new ScribeDecrypt();
-                    scribeDecrypt.CreateSchedule();
-
                     if (extTocBuffer.Length % 0x10 != 0) // Must be aligned to 0x10
                     {
                         int rem = extTocBuffer.Length % 0x10;
@@ -164,8 +161,26 @@ namespace PCarsTools
                         returnBuffer = true;
                     }
 
-                    var d = MemoryMarshal.Cast<byte, uint>(extTocBuffer);
-                    scribeDecrypt.Decrypt(d);
+                    byte[] tmp = new byte[extTocBuffer.Length];
+                    extTocBuffer.AsSpan().CopyTo(tmp);
+                    var tmpInts = MemoryMarshal.Cast<byte, uint>(tmp);
+
+                    var scribeDecrypt = new ScribeDecrypt();
+                    scribeDecrypt.CreateSchedule();
+                    scribeDecrypt.Decrypt(tmpInts);
+
+                    if (tmp[6] != 0 && tmp[7] != 0)
+                    {
+                        // presumably failed to decrypt, try RC4 with key 0 (used in TDFRL)
+                        // assumingly older than PC1 just used regular RC4
+                        extTocBuffer.AsSpan().CopyTo(tmp);
+                        BPakFileEncryption.DecryptData(pak.EncryptionType, tmp, tmp.Length, 0);
+
+                        if (tmp[6] != 0 && tmp[7] != 0)
+                            Console.WriteLine("Warning: possibly failed to decrypt Extended Info Table");
+
+                        extTocBuffer = tmp;
+                    }
                 }
 
                 pak.ExtEntries = new List<BExtendedFileInfoEntry>(fileCount);

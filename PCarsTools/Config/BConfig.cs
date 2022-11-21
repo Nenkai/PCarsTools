@@ -8,6 +8,7 @@ using System.IO;
 using PCarsTools.Encryption;
 using PCarsTools.Xml;
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 
 namespace PCarsTools.Config
 {
@@ -27,36 +28,28 @@ namespace PCarsTools.Config
             0xEF, 0xEE, 0xC0, 0xCD, 0x92, 0xA6, 0x97, 0xF2, 0xE8, 0xDC, 0x80, 0xDC, 0xEE, 0xA1, 0xA0, 0xDA,
         };
 
+        private byte[] _configKey_TestDriveFerrariRacingLegends = new byte[]
+        {
+            /*0x79, 0x36, 0x62, 0x75, 0x33, 0x75, */
+            0xE0, 0xB6, 0xCB, 0xE9, 0x89, 0xCC, 0xCF, 0xB6, 0xCA, 0xF4, 0xE3, 0xF8, 0xE7, 0x8A, 0xC2, 0xEC, /* 0x00, 0x77, 0x52, 0x41, 0x00*/
+        };
+
         public List<BPatternFilter> PatternFilters { get; set; } = new();
 
         public bool LoadConfig(string fileName)
         {
             var fileData = File.ReadAllBytes(fileName);
+            byte[] output;
+
+            if (TryDecryptConfig(fileData, _configKey_TestDriveFerrariRacingLegends, out output) ||
+                TryDecryptConfig(fileData, _configKey_PC1, out output) ||
+                TryDecryptConfig(fileData, _configKey_PC2AndAbove, out output))
+                fileData = output;
+            else
+                throw new Exception("Failed to decrypt config file (Languages/Languages.bml)");
 
             byte[] tmpData = new byte[fileData.Length];
             fileData.AsSpan().CopyTo(tmpData);
-
-            // Try PC1 Key
-            BPakFileEncryption.DecryptTwoFish(tmpData, _configKey_PC1);
-            if (BinaryPrimitives.ReadInt32LittleEndian(tmpData) == 0x594D4C42)
-            {
-                fileData = tmpData;
-            }
-            else
-            {
-                // Try PC2+ Key
-                fileData.AsSpan().CopyTo(tmpData);
-                BPakFileEncryption.DecryptTwoFish(tmpData, _configKey_PC2AndAbove);
-
-                if (BinaryPrimitives.ReadInt32LittleEndian(tmpData) == 0x594D4C42)
-                {
-                    fileData = tmpData;
-                }
-                else
-                {
-                    throw new Exception("Failed to decrypt config file (Languages/Languages.bml)");
-                }
-            }
 
             if (fileData.Length < 0x10)
                 return false;
@@ -99,6 +92,17 @@ namespace PCarsTools.Config
                 }
             }
             return true;
+        }
+
+        private static bool TryDecryptConfig(byte[] fileData, byte[] key, out byte[] output)
+        {
+            byte[] tmpData = new byte[fileData.Length];
+            fileData.AsSpan().CopyTo(tmpData);
+
+            BPakFileEncryption.DecryptTwoFish(tmpData, key);
+            output = tmpData;
+
+            return BinaryPrimitives.ReadInt32LittleEndian(tmpData) == 0x594D4C42;
         }
 
         public int GetPatternIdx(string fileName)

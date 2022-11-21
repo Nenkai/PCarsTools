@@ -12,6 +12,8 @@ using PCarsTools.Config;
 using PCarsTools.Encryption;
 using PCarsTools.Script;
 using PCarsTools.Model;
+using Syroot.BinaryData;
+using XeXtractor;
 
 namespace PCarsTools
 {
@@ -19,7 +21,6 @@ namespace PCarsTools
     {
         static void Main(string[] args)
         {
-            int x = XCompression.Constants.DefaultChunkSize;
             Console.WriteLine("PCarsTools 1.0.2 by Nenkai#9075");
             Console.WriteLine();
 
@@ -66,8 +67,8 @@ namespace PCarsTools
                 return;
             }
 
-            if (options.PCars1)
-                BPakFileEncryption.SetKeyset(KeysetType.PC1);
+            if (options.KeysetType != KeysetType.PC2AndAbove)
+                BPakFileEncryption.SetKeyset(options.KeysetType);
 
             Console.WriteLine("Paks in TOC:");
             for (int i = 0; i < man.Paks.Count; i++)
@@ -108,8 +109,8 @@ namespace PCarsTools
                 return;
             }
 
-            if (options.PCars1)
-                BPakFileEncryption.SetKeyset(KeysetType.PC1);
+            if (options.KeysetType != KeysetType.PC2AndAbove)
+                BPakFileEncryption.SetKeyset(options.KeysetType);
 
             var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
             if (pak is null)
@@ -169,7 +170,7 @@ namespace PCarsTools
         [Verb("toc", HelpText = "Unpacks a file system based on a toc file.")]
         public class TocVerbs
         {
-            [Option('i', "input", Required = true, HelpText = "Input TOC file.")]
+            [Option('i', "input", Required = true, HelpText = "Input TOC file (files from TOCFiles, or compressed.toc file from PC GO)")]
             public string InputPath { get; set; }
 
             [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
@@ -181,14 +182,17 @@ namespace PCarsTools
             [Option('u', "unpack-all", HelpText = "Whether to unpack the whole toc. If not provided, nothing will be extracted.")]
             public bool UnpackAll { get; set; }
 
-            [Option("pc1", HelpText = "Use this if unpacking from Project Cars 1  or earlier than Project Cars 2 (different encryption keys)")]
-            public bool PCars1 { get; set; }
+            [Option("game-type", HelpText = "Use this if unpacking from games earlier than Project Cars 2 (different encryption keys)\n" +
+                "Options: \n" +
+                "- PC1 (Project Cars 1)\n" +
+                "- TDFRL (Test Drive Ferrari Racing Legends)")]
+            public KeysetType KeysetType { get; set; } = KeysetType.PC2AndAbove;
         }
 
-        [Verb("pak", HelpText = "Unpacks files from a pak file.")]
+        [Verb("pak", HelpText = "Unpacks files from a pak aka .bff file.")]
         public class PakVerbs
         {
-            [Option('i', "input", Required = true, HelpText = "Input TOC file.")]
+            [Option('i', "input", Required = true, HelpText = "Input PAK/.bff file.")]
             public string InputPath { get; set; }
 
             [Option('g', "game-dir", Required = true, HelpText = "Input game directory.")]
@@ -197,8 +201,11 @@ namespace PCarsTools
             [Option('o', "output", HelpText = "Output directory. Defaults to the pak file name.")]
             public string OutputPath { get; set; }
 
-            [Option("pc1", HelpText = "Use this if unpacking from Project Cars 1 or earlier than Project Cars 2 (different encryption keys)")]
-            public bool PCars1 { get; set; }
+            [Option("game-type", HelpText = "Use this if unpacking from games earlier than Project Cars 2 (different encryption keys)\n" +
+                "Options: \n" +
+                "- PC1 (Project Cars 1)\n" +
+                "- TDFRL (Test Drive Ferrari Racing Legends)")]
+            public KeysetType KeysetType { get; set; } = KeysetType.PC2AndAbove;
         }
 
         [Verb("build-dat", HelpText = "Decrypt a build.dat file.")]
