@@ -108,8 +108,7 @@ namespace PCarsTools
                 return;
             }
 
-            if (options.KeysetType != KeysetType.PC2AndAbove)
-                BPakFileEncryption.SetKeyset(options.KeysetType);
+            BPakFileEncryption.SetKeyset(options.KeysetType);
 
             var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
             if (pak is null)
@@ -166,7 +165,8 @@ namespace PCarsTools
             public string InputPath { get; set; }
         }
 
-        [Verb("toc", HelpText = "Unpacks a file system based on a toc file.")]
+        [Verb("toc", HelpText = "Unpacks a file system based on a toc file.\n" +
+            "NOTE: Use the --game-type argument when unpacking from Project Cars 1 or Test Drive Ferrari Racing Legends!")]
         public class TocVerbs
         {
             [Option('i', "input", Required = true, HelpText = "Input TOC file (files from TOCFiles, or compressed.toc file from PC GO)")]
@@ -188,7 +188,8 @@ namespace PCarsTools
             public KeysetType KeysetType { get; set; } = KeysetType.PC2AndAbove;
         }
 
-        [Verb("pak", HelpText = "Unpacks files from a pak aka .bff file.")]
+        [Verb("pak", HelpText = "Unpacks files from a pak aka .bff file.\n" +
+            "NOTE: Use the --game-type argument when unpacking from Project Cars 1 or Test Drive Ferrari Racing Legends!")]
         public class PakVerbs
         {
             [Option('i', "input", Required = true, HelpText = "Input PAK/.bff file.")]
