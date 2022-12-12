@@ -279,6 +279,9 @@ namespace PCarsTools
             return Unpack(bytes, entry, extEntry, output);
         }
 
+        private static bool _checkedOodle;
+        private static bool _checkedXMem;
+
         private bool Unpack(byte[] bytes, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string output)
         {
             if (this.EncryptionType != eEncryptionType.None)
@@ -286,6 +289,14 @@ namespace PCarsTools
 
             if (entry.Compression == PakFileCompressionType.Mermaid || entry.Compression == PakFileCompressionType.Kraken)
             {
+                if (!_checkedOodle)
+                {
+                    if (!Environment.Is64BitProcess)
+                        throw new NotSupportedException("Use the 64 bit executable to extract (pak/bff uses Oodle)");
+
+                    _checkedOodle = true;
+                }
+
                 byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
                 bool res = Oodle.Decompress(bytes, decBuffer, entry.FileSize);// Implement this
                 if (res)
@@ -326,6 +337,14 @@ namespace PCarsTools
             }
             else if (entry.Compression == PakFileCompressionType.LZX)
             {
+                if (!_checkedXMem)
+                {
+                    if (Environment.Is64BitProcess)
+                        throw new NotSupportedException("Use the 32 bit executable to extract (pak/bff uses XMemDecompress)");
+
+                    _checkedXMem = true;
+                }
+
                 byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
 
                 var decompContext = new DecompressionContext();
