@@ -12,6 +12,7 @@ using PCarsTools.Config;
 using PCarsTools.Encryption;
 using PCarsTools.Script;
 using PCarsTools.Model;
+using PCarsTools.Texture;
 using Syroot.BinaryData;
 
 namespace PCarsTools
@@ -23,12 +24,13 @@ namespace PCarsTools
             Console.WriteLine("PCarsTools 1.1.2 by Nenkai#9075");
             Console.WriteLine();
 
-            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatVerbs, DecryptModelVerbs>(args)
+            Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatVerbs, DecryptModelVerbs, ConvertTextureVerbs>(args)
                 .WithParsed<TocVerbs>(Toc)
                 .WithParsed<PakVerbs>(Pak)
                 .WithParsed<DecryptScriptVerbs>(DecryptScript)
                 .WithParsed<BuildDatVerbs>(BuildDat)
                 .WithParsed<DecryptModelVerbs>(DecryptModel)
+                .WithParsed<ConvertTextureVerbs>(ConvertTexture)
                 .WithNotParsed(HandleNotParsedArgs);
         }
 
@@ -152,6 +154,12 @@ namespace PCarsTools
             MeshBinary.Load(options.InputPath);
             Console.WriteLine("Model decrypted/encrypted.");
         }
+        
+        public static void ConvertTexture(ConvertTextureVerbs options)
+        {
+            TextureFile.RemovePC3Padding(options.InputPath);
+            Console.WriteLine("Texture converted.");
+        }
 
         public static void HandleNotParsedArgs(IEnumerable<Error> errors)
         {
@@ -217,6 +225,13 @@ namespace PCarsTools
 
         [Verb("decryptmodel", HelpText = "Decrypts model files (.meb)")]
         public class DecryptModelVerbs
+        {
+            [Option('i', "input", Required = true, HelpText = "Input file.")]
+            public string InputPath { get; set; }
+        }
+        
+        [Verb("convert-texture", HelpText = "Converts texture files by removing the header (.tex)")]
+        public class ConvertTextureVerbs
         {
             [Option('i', "input", Required = true, HelpText = "Input file.")]
             public string InputPath { get; set; }
