@@ -12,31 +12,25 @@ namespace PCarsTools.Texture
 {
     public class TextureFile
     {
-        
         public static void RemovePC3Padding(string fileName)
         {
             using var fs = new FileStream(fileName, FileMode.Open);
             using var bs = new BinaryStream(fs);
-            FileInfo file = new FileInfo(fileName);
 
-			int i = 0;
-			uint j = bs.ReadUInt32();
-			while (j != 542327876){
-				i++;
-				bs.Seek(i, SeekOrigin.Begin);
-				j = bs.ReadUInt32();
-			}
-			using var fs2 = new FileStream(fileName.Substring(0, fileName.Length - 4) + ".dds", FileMode.CreateNew);
+            if (fs.Length < 4)
+                return;
+
+            uint possibleMagic;
+            do
+            {
+                possibleMagic = bs.ReadUInt32();
+            } while (possibleMagic != 0x20534444);
+            bs.Position -= 4;
+
+            using var fs2 = new FileStream(fileName.Substring(0, fileName.Length - 4) + ".dds", FileMode.CreateNew);
 			using var bs2 = new BinaryStream(fs2);
-			bs.Seek(i, SeekOrigin.Begin);
-            byte[] bytes = bs.ReadBytes((int)file.Length - i);
+            byte[] bytes = bs.ReadBytes((int)(fs.Length - fs.Position));
             bs2.Write(bytes);
-            bs2.Flush();
-            bs.Close();
-            fs.Close();
-            file.Delete();
-            bs2.Close();
-            fs2.Close();
         }
     }
 }

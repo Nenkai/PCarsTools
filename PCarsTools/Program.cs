@@ -157,8 +157,18 @@ namespace PCarsTools
         
         public static void ConvertTexture(ConvertTextureVerbs options)
         {
-            TextureFile.RemovePC3Padding(options.InputPath);
-            Console.WriteLine("Texture converted.");
+            foreach (var file in options.Files)
+            {
+                try
+                {
+                    TextureFile.RemovePC3Padding(file);
+                    Console.WriteLine($"Converted {file}.");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Could not convert {file}: {e.Message}.");
+                }
+            }
         }
 
         public static void HandleNotParsedArgs(IEnumerable<Error> errors)
@@ -233,8 +243,8 @@ namespace PCarsTools
         [Verb("convert-texture", HelpText = "Converts texture files by removing the header (.tex)")]
         public class ConvertTextureVerbs
         {
-            [Option('i', "input", Required = true, HelpText = "Input file.")]
-            public string InputPath { get; set; }
+            [Option('i', "input", Required = true, HelpText = "Input file(s).")]
+            public IEnumerable<string> Files { get; set; }
         }
     }
 }
