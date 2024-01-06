@@ -14,6 +14,7 @@ Allows:
 - TOC unpacking (with file names)
 - Script decryption (bundled inside executables as bmp...)
 - Model decryption (.meb)
+- Texture conversion (.tex)
 - build.dat decryption
 
 NOTE: Requires oo2core_7_win64 dll file for later games, not included in this repository.
@@ -31,6 +32,9 @@ NOTE: Requires oo2core_7_win64 dll file for later games, not included in this re
   
 * Model decryption/encryption
   * `PCarsTools decryptmodel -i <path to meb file>`
+
+* Texture conversion (removes the header from .tex files)
+  * `PCarsTools convert-texture -i <path to tex file>`
   
 * Build.dat decryption
   * `PCarsTools build-dat -i <path to build.dat>`

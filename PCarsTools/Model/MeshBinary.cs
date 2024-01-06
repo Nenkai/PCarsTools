@@ -16,6 +16,8 @@ namespace PCarsTools.Model
     {
         public static void Load(string fileName)
         {
+			RemovePC3Padding(fileName);
+			
             using var fs = new FileStream(fileName, FileMode.Open);
             using var bs = new BinaryStream(fs);
 
@@ -145,7 +147,31 @@ namespace PCarsTools.Model
             }
         }
 
-        
+        private static void RemovePC3Padding(string fileName)
+        {
+            using var fs = new FileStream(fileName, FileMode.Open);
+            using var bs = new BinaryStream(fs);
+
+            byte[] before = bs.ReadBytes(8);
+            int pad = bs.ReadInt32();
+            if (pad != 0)
+            {
+                bs.Close();
+                fs.Close();
+                return;
+            }
+
+            FileInfo file = new FileInfo(fileName);
+            byte[] after = bs.ReadBytes((int)file.Length - 12);
+            bs.Seek(8, SeekOrigin.Begin);
+            bs.Write(after);
+
+            fs.SetLength((int)file.Length - 4);
+
+            bs.Flush();
+            bs.Close();
+            fs.Close();
+        }
 
         enum SemanticName : int
         {
