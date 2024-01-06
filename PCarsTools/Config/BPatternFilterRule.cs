@@ -46,11 +46,10 @@ namespace PCarsTools.Config
 
                 // Try to find match across whole pattern
                 int j = 0;
-                while (j < Pattern.Length)
+                while (j < input.Length)
                 {
                     bool isUnk = Pattern[j] == (byte)'?';
-                    char currentUp = char.ToUpper((char)input[i]);
-
+                    char currentUp = char.ToUpper((char)input[j]);
 
                     bool match = currentUp == char.ToUpper((char)(xor ^ Pattern[j])); // decrypt pattern
                     if (!isUnk && !match)

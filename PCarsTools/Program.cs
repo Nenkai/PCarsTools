@@ -13,6 +13,8 @@ using PCarsTools.Encryption;
 using PCarsTools.Script;
 using PCarsTools.Model;
 using PCarsTools.Texture;
+using PCarsTools.Pak;
+
 using Syroot.BinaryData;
 
 namespace PCarsTools
@@ -73,7 +75,7 @@ namespace PCarsTools
 
             Console.WriteLine("Paks in TOC:");
             for (int i = 0; i < man.Paks.Count; i++)
-                Console.WriteLine($" - {man.Paks[i].Name} ({man.Paks[i].Entries.Count} entries, Encryption: {man.Paks[i].EncryptionType})");
+                Console.WriteLine($" - {man.Paks[i].Header.mFileName} ({man.Paks[i].Entries.Count} entries, Encryption: {man.Paks[i].Header.mEncryption})");
             Console.WriteLine();
 
             if (options.UnpackAll)
@@ -112,7 +114,9 @@ namespace PCarsTools
 
             BPakFileEncryption.SetKeyset(options.KeysetType);
 
-            var pak = BPakFile.FromFile(options.InputPath, withExtraInfo: true);
+            var pak = new BPakFile();
+            pak.FromFile(options.InputPath, withExtraInfo: true);
+
             if (pak is null)
             {
                 Console.WriteLine($"Unable to load pak file.");
@@ -121,7 +125,7 @@ namespace PCarsTools
 
             if (string.IsNullOrEmpty(options.OutputPath))
             {
-                options.OutputPath = Path.Combine(Path.GetDirectoryName(options.InputPath), pak.Name + "_extracted");
+                options.OutputPath = Path.Combine(Path.GetDirectoryName(options.InputPath), pak.Header.mFileName + "_extracted");
                 Directory.CreateDirectory(options.OutputPath);
             }
             pak.UnpackAll(options.OutputPath);
@@ -151,7 +155,7 @@ namespace PCarsTools
 
         public static void DecryptModel(DecryptModelVerbs options)
         {
-            MeshBinary.Load(options.InputPath);
+            MeshBinary.LoadAndDecrypt(options.InputPath);
             Console.WriteLine("Model decrypted/encrypted.");
         }
         

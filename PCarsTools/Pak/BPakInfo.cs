@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace PCarsTools
+namespace PCarsTools.Pak
 {
     public class BPakInfo
     {

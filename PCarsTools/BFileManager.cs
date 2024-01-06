@@ -8,6 +8,8 @@ using System.IO;
 using Syroot.BinaryData;
 
 using PCarsTools.Encryption;
+using PCarsTools.Pak;
+using PCarsTools.Base;
 
 namespace PCarsTools
 {
@@ -60,7 +62,8 @@ namespace PCarsTools
                 if (fileName.Contains("compressed.toc")) // PCars GO
                     hasExtraInfo = true;
 
-                var pak = BPakFile.FromStream(bs, withExtraInfo: hasExtraInfo, pakInfo.PakName);
+                var pak = new BPakFile();
+                pak.FromStream(bs, withExtraInfo: hasExtraInfo, pakInfo.PakName);
                 Paks.Add(pak);
             }
 
@@ -80,9 +83,11 @@ namespace PCarsTools
                 {
                     Console.WriteLine($"PAK Reference in ToC: {pak.Path}");
                     string pakPath = Path.Combine(gameDirectory, pak.Path);
-                    BPakFile pakWithData = BPakFile.FromFile(pakPath, withExtraInfo: true); // Actual packs have extra infos
 
-                    string outputDir = Path.Combine(Path.GetDirectoryName(pakPath), pak.Name + "_extracted");
+                    var pakWithData = new BPakFile();
+                    pakWithData.FromFile(pakPath, withExtraInfo: true); // Actual packs have extra infos
+
+                    string outputDir = Path.Combine(Path.GetDirectoryName(pakPath), pak.Header.mFileName + "_extracted");
 
                     Directory.CreateDirectory(outputDir);
                     pakWithData.UnpackAll(outputDir);
@@ -94,14 +99,14 @@ namespace PCarsTools
                     for (int i = 0; i < pak.Entries.Count; i++)
                     {
                         var entry = pak.Entries[i];
-                        BExtendedFileInfoEntry extEntry = null;
-                        if (pak.Flags.HasFlag(ePakFlags.FilesOnDisk))
+                        PakFileExtEntry extEntry = null;
+                        if (pak.Header.mFlags.HasFlag(ePakFlags.FilesOnDisk))
                             extEntry = pak.ExtEntries[i];
 
                         // PCars GO, where files are just stored but encrypted, referenced by the toc
                         if (pak.UnpackFromLocalStoredFile(TocFilePath, entry, extEntry))
                         {
-                            Console.WriteLine($"Unpacked: [{pak.Name}]\\{extEntry.Path}");
+                            Console.WriteLine($"Unpacked: [{pak.Header.mFileName}]\\{extEntry.Path}");
                             totalCount++;
                         }
                         else
@@ -121,7 +126,7 @@ namespace PCarsTools
             using var sw = new StreamWriter(outfile);
             foreach (var pak in Paks)
             {
-                sw.WriteLine($"Pak Name: {pak.Name}");
+                sw.WriteLine($"Pak Name: {pak.Header.mFileName}");
                 for (int i = 0; i < pak.Entries.Count; i++)
                 {
                     sw.WriteLine(pak.ExtEntries[i].Path);

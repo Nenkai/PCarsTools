@@ -17,20 +17,19 @@ using PCarsTools.Config;
 using ICSharpCode.SharpZipLib.Zip.Compression;
 using PCarsTools.Compression;
 using XCompression;
+using PCarsTools.Base;
 
-namespace PCarsTools
+namespace PCarsTools.Pak
 {
     public class BPakFile
     {
         public const string TagId = "PAK ";
 
-        public BVersion Version { get; set; }
-        public string Name { get; set; }
-        public ePakFlags Flags { get; set; }
-        public eEncryptionType EncryptionType { get; set; }
+        public PakFileHeader Header { get; private set; }
+        public PakFileExtHeader ExtHeader { get; private set; }
 
-        public List<BPakFileTocEntry> Entries { get; set; }
-        public List<BExtendedFileInfoEntry> ExtEntries { get; set; }
+        public List<PakFileTocEntry> Entries { get; set; }
+        public List<PakFileExtEntry> ExtEntries { get; set; }
 
         public int KeyIndex { get; set; }
 
@@ -47,39 +46,33 @@ namespace PCarsTools
         /// <param name="inputFile"></param>
         /// <param name="withExtraInfo"></param>
         /// <returns></returns>
-        public static BPakFile FromFile(string inputFile, bool withExtraInfo = true)
+        public void FromFile(string inputFile, bool withExtraInfo = true)
         {
             var fs = new FileStream(inputFile, FileMode.Open);
-            var pak = FromStream(fs, withExtraInfo: withExtraInfo, tocFileName: inputFile);
-            pak._fs = fs;
-
-            return pak;
+            FromStream(fs, withExtraInfo: withExtraInfo, tocFileName: inputFile);
+            _fs = fs;
         }
 
-        public static BPakFile FromStream(Stream stream, bool withExtraInfo = false, string tocFileName = null)
+        public void FromStream(Stream stream, bool withExtraInfo = false, string tocFileName = null)
         {
-            var pak = new BPakFile();
             int pakOffset = (int)stream.Position;
-            pak.Path = tocFileName.ToLower().Replace('/', '\\');
+            Path = tocFileName.ToLower().Replace('/', '\\');
 
-            using var bs = new BinaryStream(stream, leaveOpen: true);
-            int mID = bs.ReadInt32();
-            pak.Version = new BVersion(bs.ReadUInt32());
-            int fileCount = bs.ReadInt32();
-            bs.Position += 12;
-            pak.Name = bs.ReadString(0x100).TrimEnd('\0');
+            var bs = new BinaryStream(stream);
+            Header = new PakFileHeader();
+            Header.Read(bs);
 
             bool keyIndexFound = false;
-            pak.KeyIndex = BConfig.Instance.GetPatternIdx(pak.Name);
-            if (pak.KeyIndex == 0 && !string.IsNullOrEmpty(pak.Path)) // Default key found, try to see if its in the path
+            KeyIndex = BConfig.Instance.GetPatternIdx(Header.mFileName);
+            if (KeyIndex == 0 && !string.IsNullOrEmpty(Path)) // Default key found, try to see if its in the path
             {
                 foreach (var filter in BConfig.Instance.PatternFilters)
                 {
                     foreach (var rule in filter.PatternRules)
                     {
-                        if (pak.Path.Contains(rule.PatternDecrypted))
+                        if (Path.Contains(rule.PatternDecrypted))
                         {
-                            pak.KeyIndex = filter.Index;
+                            KeyIndex = filter.Index;
                             keyIndexFound = true;
                             goto found;
                         }
@@ -89,68 +82,54 @@ namespace PCarsTools
                 ;
             }
 
-            uint pakFileTocEntrySize = bs.ReadUInt32();
-            uint crc = bs.ReadUInt32();
-            uint extInfoSize = bs.ReadUInt32();
-            bs.Position += 8;
-            pak.Flags = (ePakFlags)bs.Read1Byte();
-            pak.EncryptionType = (eEncryptionType)bs.Read1Byte();
-            bs.Position += 2;
+            var pakTocBuffer = bs.ReadBytes((int)Header.mTocSize);
 
-            var pakTocBuffer = bs.ReadBytes((int)pakFileTocEntrySize);
-
-            if (pak.EncryptionType != eEncryptionType.None)
+            if (Header.mEncryption != eEncryptionType.None)
             {
-                if (!keyIndexFound && pak.KeyIndex == 0) // Still not found? Attempt bruteforce
+                if (!keyIndexFound && KeyIndex == 0) // Still not found? Attempt bruteforce
                 {
                     int j = 0;
                     for (int i = 0; i < 32; i++)
                     {
                         var tmpData = pakTocBuffer.ToArray();
-                        BPakFileEncryption.DecryptData(pak.EncryptionType, tmpData, tmpData.Length, i);
+                        BPakFileEncryption.DecryptData(Header.mEncryption, tmpData, tmpData.Length, i);
                         if (tmpData[14] == 0 && tmpData[15] == 0)
                         {
-                            pak.KeyIndex = i;
+                            KeyIndex = i;
                             break;
                         }
                     }
                 }
 
-                BPakFileEncryption.DecryptData(pak.EncryptionType, pakTocBuffer, pakTocBuffer.Length, pak.KeyIndex);
+                BPakFileEncryption.DecryptData(Header.mEncryption, pakTocBuffer, pakTocBuffer.Length, KeyIndex);
             }
 
             if (pakTocBuffer[14] != 0 && pakTocBuffer[15] != 0) // Check if first entry offset is absurdly too big that its possibly not decrypted correctly
-                Console.WriteLine($"Warning - possible crash: {pak.Name} toc could most likely not be decrypted correctly using key No.{pak.KeyIndex}");
+                Console.WriteLine($"Warning - possible crash: {Header.mFileName} toc could most likely not be decrypted correctly using key No.{KeyIndex}");
 
-            pak.Entries = new List<BPakFileTocEntry>(fileCount);
+            Entries = new List<PakFileTocEntry>((int)Header.mFileCount);
             SpanReader sr = new SpanReader(pakTocBuffer);
-            for (int i = 0; i < fileCount; i++)
+            for (int i = 0; i < Header.mFileCount; i++)
             {
-                sr.Position = (i * 0x2A);
-                var pakFileToCEntry = new BPakFileTocEntry();
-                pakFileToCEntry.UId = sr.ReadUInt64();
-                pakFileToCEntry.Offset = sr.ReadUInt64();
-                pakFileToCEntry.PakSize = sr.ReadUInt32();
-                pakFileToCEntry.FileSize = sr.ReadUInt32();
-                pakFileToCEntry.TimeStamp = sr.ReadUInt64();
-                pakFileToCEntry.Compression = (PakFileCompressionType)sr.ReadByte();
-                pakFileToCEntry.UnkFlag = sr.ReadByte();
-                pakFileToCEntry.CRC = sr.ReadUInt32();
-                pakFileToCEntry.Extension = sr.ReadStringRaw(4).ToCharArray();
-                pak.Entries.Add(pakFileToCEntry);
+                sr.Position = i * 0x2A;
+
+                var pakFileToCEntry = new PakFileTocEntry();
+                pakFileToCEntry.Read(ref sr);
+
+                Entries.Add(pakFileToCEntry);
             }
 
             if (withExtraInfo)
             {
-                const int unkCertXmlSize = 0x308;
-                bs.Position += unkCertXmlSize;
+                ExtHeader = new PakFileExtHeader();
+                ExtHeader.Read(bs);
 
                 int baseExtOffset = (int)bs.Position - pakOffset;
-                int extInfoEntriesSize = (int)Utils.AlignValue(extInfoSize - unkCertXmlSize, 0x10);
+                int extInfoEntriesSize = (int)Utils.AlignValue(Header.mExtInfoSize - PakFileExtHeader.GetSize(), 0x10);
                 var extTocBuffer = bs.ReadBytes(extInfoEntriesSize);
 
                 bool returnBuffer = false;
-                if (pak.EncryptionType != eEncryptionType.None)
+                if (Header.mEncryption != eEncryptionType.None)
                 {
                     if (extTocBuffer.Length % 0x10 != 0) // Must be aligned to 0x10
                     {
@@ -174,7 +153,7 @@ namespace PCarsTools
                         // presumably failed to decrypt, try RC4 with key 0 (used in TDFRL)
                         // assumingly older than PC1 just used regular RC4
                         extTocBuffer.AsSpan().CopyTo(tmp);
-                        BPakFileEncryption.DecryptData(pak.EncryptionType, tmp, tmp.Length, 0);
+                        BPakFileEncryption.DecryptData(Header.mEncryption, tmp, tmp.Length, 0);
 
                         if (tmp[6] != 0 && tmp[7] != 0)
                             Console.WriteLine("Warning: possibly failed to decrypt Extended Info Table");
@@ -185,32 +164,30 @@ namespace PCarsTools
                     extTocBuffer = tmp;
                 }
 
-                pak.ExtEntries = new List<BExtendedFileInfoEntry>(fileCount);
+                ExtEntries = new List<PakFileExtEntry>((int)Header.mFileCount);
                 sr = new SpanReader(extTocBuffer);
-                for (int i = 0; i < fileCount; i++)
+                for (int i = 0; i < Header.mFileCount; i++)
                 {
                     sr.Position = i * 0x10;
 
-                    var extEntry = new BExtendedFileInfoEntry();
-                    extEntry.Offset = sr.ReadInt64();
-                    extEntry.TimeStamp = sr.ReadInt64();
+                    var extEntry = new PakFileExtEntry();
+                    extEntry.Read(ref sr);
 
-                    sr.Position = (int)extEntry.Offset - baseExtOffset;
+                    sr.Position = (int)extEntry.mNameOffset - baseExtOffset;
                     extEntry.Path = sr.ReadString1();
 
                     ulong uid = BHashCode.CreateUidRaw(extEntry.Path);
-                    if (pak.Entries[i].UId != uid)
-                        Console.WriteLine($"Warning - unmatched UID/Hash: {extEntry.Path} (target={pak.Entries[i].UId:X16}, got={uid}");
+                    if (Entries[i].mUid != uid)
+                        Console.WriteLine($"Warning - unmatched UID/Hash: {extEntry.Path} (target={Entries[i].mUid:X16}, got={uid}");
 
-                    pak.ExtEntries.Add(extEntry);
+                    ExtEntries.Add(extEntry);
                 }
 
                 if (returnBuffer)
                     ArrayPool<byte>.Shared.Return(extTocBuffer);
             }
-
-            return pak;
         }
+
 
         public void UnpackAll(string outputDir)
         {
@@ -227,7 +204,7 @@ namespace PCarsTools
 
                 if (UnpackFromStream(entry, extEntry, outPath))
                 {
-                    Console.WriteLine($"Unpacked: [{Name}]\\{extEntry.Path}");
+                    Console.WriteLine($"Unpacked: [{Header.mFileName}]\\{extEntry.Path}");
                     totalCount++;
                 }
                 else
@@ -240,7 +217,7 @@ namespace PCarsTools
             Console.WriteLine($"Done. Extracted {totalCount} files ({failed} not extracted)");
         }
 
-        public bool UnpackFromLocalStoredFile(string outputDir, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry)
+        public bool UnpackFromLocalStoredFile(string outputDir, PakFileTocEntry entry, PakFileExtEntry extEntry)
         {
             if (_fs is not null)
                 throw new InvalidOperationException("Can't extract from local file when the pak is an actual file with data");
@@ -258,22 +235,28 @@ namespace PCarsTools
             return false;
         }
 
-        public bool UnpackFromStream(BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string output)
+        public bool UnpackFromStream(PakFileTocEntry entry, PakFileExtEntry extEntry, string output)
         {
             if (_fs is null)
                 throw new InvalidOperationException("Can't extract from stream from a toc file based pak");
 
-            _fs.Position = (long)entry.Offset;
+            _fs.Position = (long)entry.mDataPos;
 
-            var bytes = ArrayPool<byte>.Shared.Rent((int)entry.PakSize);
+            var bytes = ArrayPool<byte>.Shared.Rent((int)entry.mSizeInPak);
             _fs.Read(bytes);
 
             bool result = Unpack(bytes, entry, extEntry, output);
+
+            var time = new BDateTime(entry.mModifiedTime >> 12); // For some reason the time here is 12 bits higher
+
+            File.SetCreationTime(output, new DateTime((int)time.Year, (int)time.Month, (int)time.Day, (int)time.Hour, (int)time.Min, (int)time.Sec));
+            File.SetLastWriteTime(output, new DateTime((int)time.Year, (int)time.Month, (int)time.Day, (int)time.Hour, (int)time.Min, (int)time.Sec));
+
             ArrayPool<byte>.Shared.Return(bytes);
             return result;
         }
 
-        private bool UnpackFromFile(BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string inputFile, string output)
+        private bool UnpackFromFile(PakFileTocEntry entry, PakFileExtEntry extEntry, string inputFile, string output)
         {
             var bytes = File.ReadAllBytes(inputFile);
             return Unpack(bytes, entry, extEntry, output);
@@ -282,12 +265,12 @@ namespace PCarsTools
         private static bool _checkedOodle;
         private static bool _checkedXMem;
 
-        private bool Unpack(byte[] bytes, BPakFileTocEntry entry, BExtendedFileInfoEntry extEntry, string output)
+        private bool Unpack(byte[] bytes, PakFileTocEntry entry, PakFileExtEntry extEntry, string output)
         {
-            if (this.EncryptionType != eEncryptionType.None)
-                BPakFileEncryption.DecryptData(this.EncryptionType, bytes, bytes.Length, this.KeyIndex);
+            if (Header.mEncryption != eEncryptionType.None)
+                BPakFileEncryption.DecryptData(Header.mEncryption, bytes, bytes.Length, KeyIndex);
 
-            if (entry.Compression == PakFileCompressionType.Mermaid || entry.Compression == PakFileCompressionType.Kraken)
+            if (entry.mFileType == PakFileCompressionType.Mermaid || entry.mFileType == PakFileCompressionType.Kraken)
             {
                 if (!_checkedOodle)
                 {
@@ -297,45 +280,45 @@ namespace PCarsTools
                     _checkedOodle = true;
                 }
 
-                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
-                bool res = Oodle.Decompress(bytes, decBuffer, entry.FileSize);// Implement this
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.mOriginalSize);
+                bool res = Oodle.Decompress(bytes, decBuffer, entry.mOriginalSize);// Implement this
                 if (res)
                 {
                     using var fs = new FileStream(output, FileMode.Create);
-                    fs.Write(decBuffer, 0, (int)entry.FileSize);
+                    fs.Write(decBuffer, 0, (int)entry.mOriginalSize);
                 }
 
                 ArrayPool<byte>.Shared.Return(decBuffer);
                 return res;
             }
-            else if (entry.Compression == PakFileCompressionType.ZLib)
+            else if (entry.mFileType == PakFileCompressionType.ZLib)
             {
-                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.mOriginalSize);
 
                 int len;
                 if (bytes[0] == 0x78 && bytes[1] == 0x9C) // Zlib magic
                 {
                     Inflater inflater = new Inflater(noHeader: false);
-                    inflater.SetInput(bytes, 0, (int)entry.PakSize);
-                    len = inflater.Inflate(decBuffer, 0, (int)entry.FileSize);
+                    inflater.SetInput(bytes, 0, (int)entry.mSizeInPak);
+                    len = inflater.Inflate(decBuffer, 0, (int)entry.mOriginalSize);
                 }
                 else
                 {
                     using var ms = new MemoryStream(bytes);
                     using var uncompStream = new DeflateStream(ms, CompressionMode.Decompress);
-                    len = uncompStream.Read(decBuffer.AsSpan(0, (int)entry.FileSize));
+                    len = uncompStream.Read(decBuffer.AsSpan(0, (int)entry.mOriginalSize));
                 }
 
-                if (len == entry.FileSize)
+                if (len == entry.mOriginalSize)
                 {
                     using var fs = new FileStream(output, FileMode.Create);
                     fs.Write(decBuffer, 0, len);
                 }
 
                 ArrayPool<byte>.Shared.Return(decBuffer);
-                return len == entry.FileSize;
+                return len == entry.mOriginalSize;
             }
-            else if (entry.Compression == PakFileCompressionType.LZX)
+            else if (entry.mFileType == PakFileCompressionType.LZX)
             {
                 if (!_checkedXMem)
                 {
@@ -345,27 +328,27 @@ namespace PCarsTools
                     _checkedXMem = true;
                 }
 
-                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.FileSize);
+                byte[] decBuffer = ArrayPool<byte>.Shared.Rent((int)entry.mOriginalSize);
 
                 var decompContext = new DecompressionContext();
-                int pakLen = (int)entry.PakSize;
-                int outLen = (int)entry.FileSize;
+                int pakLen = (int)entry.mSizeInPak;
+                int outLen = (int)entry.mOriginalSize;
                 ErrorCode err = decompContext.Decompress(bytes, 0, ref pakLen, decBuffer, 0, ref outLen);
                 if (err != ErrorCode.None)
                     Console.WriteLine($"Error: Failed to unpack {extEntry.Path} (XMemDecompress/LZX) - Code: {(int)err:X8}");
 
-                if (outLen == entry.FileSize)
+                if (outLen == entry.mOriginalSize)
                 {
                     using var fs = new FileStream(output, FileMode.Create);
                     fs.Write(decBuffer, 0, outLen);
                 }
 
                 ArrayPool<byte>.Shared.Return(decBuffer);
-                return outLen == entry.FileSize;
+                return outLen == entry.mOriginalSize;
             }
-            else if (entry.Compression != PakFileCompressionType.None)
+            else if (entry.mFileType != PakFileCompressionType.None)
             {
-                Console.WriteLine($"Warning: Unrecognized compression type {entry.Compression} for {extEntry.Path}");
+                Console.WriteLine($"Warning: Unrecognized compression type {entry.mFileType} for {extEntry.Path}");
                 return false;
             }
             else

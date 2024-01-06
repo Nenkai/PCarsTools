@@ -9,12 +9,13 @@ using System.Numerics;
 using System.Buffers.Binary;
 
 using PCarsTools.Encryption;
+using PCarsTools.Base;
 
 namespace PCarsTools.Model
 {
     public class MeshBinary
     {
-        public static void Load(string fileName)
+        public static void LoadAndDecrypt(string fileName)
         {
             // TODO: Fix this (it's a hack)
 			RemovePC3Padding(fileName);
