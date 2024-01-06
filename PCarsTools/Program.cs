@@ -21,7 +21,7 @@ namespace PCarsTools
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("PCarsTools 1.1.2 by Nenkai#9075");
+            Console.WriteLine("PCarsTools 1.1.3 by Nenkai");
             Console.WriteLine();
 
             Parser.Default.ParseArguments<TocVerbs, PakVerbs, DecryptScriptVerbs, BuildDatVerbs, DecryptModelVerbs, ConvertTextureVerbs>(args)
